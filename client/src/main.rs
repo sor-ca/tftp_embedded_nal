@@ -7,16 +7,10 @@ use std::fs::File;
 fn main() {
     let mut buf = [0; 516];
 
-    //let mut text = "Hello, world!".as_bytes();
-    //text.read(&mut buf).expect("can't read");
-
     let socket = UdpSocket::bind("127.0.0.1:8081").expect("couldn't bind to address");
     //socket.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
 
-    //if the path is short, error - can't find file
-    //let mut f = File::open("text.txt").unwrap();
-
-    let mut f = File::open(r"D:\rust\tftp_std\client\text.txt").unwrap();
+    let mut f = File::open("read_from.txt").unwrap();
     f.read(&mut buf).unwrap();
     
     socket.send_to(&buf[..], "127.0.0.1:69").expect("couldn't send data");
