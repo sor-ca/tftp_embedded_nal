@@ -4,6 +4,8 @@ use std::io::Read;
 use std::fs::File;
 use message::Message;
 use ascii::AsciiStr;
+extern crate alloc;
+use alloc::vec::Vec;
 //use std::time::Duration;
 fn main() {
     let socket = UdpSocket::bind("127.0.0.1:8081").expect("couldn't bind to address");
@@ -11,18 +13,15 @@ fn main() {
 
     let path = "read_from.txt";
 
-    let message = Message::wrq(AsciiStr::from_ascii(path.as_bytes()).unwrap(), true).unwrap();
+    let packet: Vec<u8> = Message::wrq(AsciiStr::from_ascii(path.as_bytes()).unwrap(), true).unwrap().into();
     
-    socket.send_to(message.into().as_slice(), "127.0.0.1:69").expect("couldn't send data");
+    socket.send_to(packet.as_slice(), "127.0.0.1:69").expect("couldn't send data");
     let mut r_buf = [0; 516];
     let (number_of_bytes, src_addr) = socket.recv_from(&mut r_buf).expect("didn't receive data");
     let mut filled_buf = &mut r_buf[..number_of_bytes];
     dbg!(src_addr);
     dbg!(from_utf8(&filled_buf).expect("can't read message"));
 
-    //let mut text = "second_message".as_bytes();
-    //text.read(&mut buf).expect("can't read");
-    
     let mut buf = [0; 516];
     let mut f = File::open(path).unwrap();
     f.read(&mut buf).unwrap();
