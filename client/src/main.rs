@@ -1,12 +1,8 @@
+use std::{fs::File, io::Read, net::UdpSocket, time::Duration};
+
 use ascii::AsciiStr;
 use message::Message;
-use std::fs::File;
-use std::io::Read;
-use std::net::UdpSocket;
-use std::str::from_utf8;
-extern crate alloc;
-use alloc::vec::Vec;
-use std::time::Duration;
+
 fn main() {
     let socket = UdpSocket::bind("127.0.0.1:8081").expect("couldn't bind to address");
     socket
@@ -42,7 +38,7 @@ fn main() {
     let mut buf = [0; 512];
     let mut f = File::open(path).unwrap();
     f.read(&mut buf).unwrap();
-    let mut block_id = 1u16;
+    let block_id = 1u16;
     let packet: Vec<u8> = Message::data(block_id, &buf[..]).unwrap().into();
 
     loop {

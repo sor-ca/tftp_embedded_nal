@@ -1,14 +1,12 @@
-use ascii::AsciiStr;
+use std::{
+    fs::File,
+    io::Write,
+    net::UdpSocket,
+    str, thread,
+    time::{self, Duration},
+};
+
 use message::{FileOperation, Message};
-use std::fs::File;
-use std::io::Write;
-use std::net::UdpSocket;
-use std::str::from_utf8;
-use std::{thread, time};
-extern crate alloc;
-use alloc::vec::Vec;
-use std::time::Duration;
-//use std::net::SocketAddr;
 
 fn main() {
     let mut socket = UdpSocket::bind("127.0.0.1:69").expect("couldn't bind to address");
@@ -46,7 +44,7 @@ fn main() {
         match message {
             Message::Data(block_id, data) => {
                 println!("receive data packet");
-                dbg!(from_utf8(data.as_ref()).expect("can't read message"));
+                dbg!(str::from_utf8(data.as_ref()).expect("can't read message"));
 
                 let packet: Vec<u8> = Message::ack(block_id).into();
                 f.write(data.as_ref()).unwrap();
