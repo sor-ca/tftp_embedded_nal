@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 message = { path = "../message"}
+ascii = "1"
