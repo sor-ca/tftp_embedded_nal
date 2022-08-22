@@ -271,7 +271,7 @@ impl<'b> From<Message<'b>> for alloc::vec::Vec<u8> {
             }
         }
     }
-}                             
+}
 
 fn file_operation(source: &[u8], operation: FileOperation) -> Result<Message<'_>, Error> {
     let mut split = source.split(|b| *b == 0);
@@ -295,45 +295,53 @@ impl<'b> Message<'b> {
     //type Error = Error;
 
     pub fn wrq(path: &'b AsciiStr, octet_mode: bool) -> Result<Self, Error> {
-        //Need to correct because this is std::fs function, I haven't found no_std equivalent, 
-        if ! PathBuf::from(path.as_str()).exists() {
+        //Need to correct because this is std::fs function, I haven't found no_std equivalent,
+        if !PathBuf::from(path.as_str()).exists() {
             return Err(Error::NoPath);
         }
-    
+
         Ok(Message::File {
             operation: FileOperation::Write,
             path,
-            mode: if octet_mode == true {Mode::Binary} else {Mode::NetAscii},
-        })      
-    } 
-    
+            mode: if octet_mode == true {
+                Mode::Binary
+            } else {
+                Mode::NetAscii
+            },
+        })
+    }
+
     // path - need to check if the file is available
-    pub fn rrq(path: &'b AsciiStr, octet_mode: bool) ->  Result<Self, Error> {   
+    pub fn rrq(path: &'b AsciiStr, octet_mode: bool) -> Result<Self, Error> {
         //Need to correct because this is std::fs function, I haven't found no_std equivalent
-        if ! PathBuf::from(path.as_str()).exists() {
+        if !PathBuf::from(path.as_str()).exists() {
             return Err(Error::NoPath);
         }
-    
+
         Ok(Message::File {
             operation: FileOperation::Read,
             path,
-            mode: if octet_mode == true {Mode::Binary} else {Mode::NetAscii},
-        }) 
+            mode: if octet_mode == true {
+                Mode::Binary
+            } else {
+                Mode::NetAscii
+            },
+        })
     }
-    
+
     pub fn data(block_id: u16, buf: &'b [u8]) -> Result<Self, Error> {
         let buf = BufAtMost512::try_from(buf);
         match buf {
             Ok(data) => Ok(Message::Data(block_id, data)),
             Err(e) => Err(Error::BufferTooLarge(e.0)),
-        }    
+        }
     }
-    
+
     pub fn ack(block_id: u16) -> Self {
         //I can't imagine what fail may occur
-        Message::Ack(block_id)   
+        Message::Ack(block_id)
     }
-    
+
     pub fn error(block_id: u16, error_message: &'b AsciiStr) -> Self {
         //I can't imagine what fail may occur
         Message::Error(block_id, error_message)
