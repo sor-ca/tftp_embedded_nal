@@ -1,10 +1,15 @@
 [package]
-name = "client"
+name = "message"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = ["alloc"]
+alloc = []
+
 [dependencies]
-message = { path = "../message"}
 ascii = "1"
+enumn = "0.1"
+displaydoc = "0.2"
