@@ -63,21 +63,20 @@ impl TftpClient {
 }
 
 fn main() {
-    let mut TC = TftpClient::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)));
-    let mut socket = TC.socket()?;
-    TC.bind(&mut socket, 8081)?;
+    let mut tc = TftpClient::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)));
+    let mut socket = tc.socket().unwrap();
+    tc.bind(&mut socket, 8081).unwrap();
 
     let path = "read_from.txt";
 
     let packet: Vec<u8> = wrq(AsciiStr::from_ascii(path.as_bytes()).unwrap(), true)
         .unwrap()
         .into();    
-    TC
-        .send_to(&mut socket, 
+    tc.send_to(&mut socket,
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 69), 
-            packet.as_slice())?;
+            packet.as_slice()).unwrap();
     
-    let mut file = TC.read_file("read_from.txt");
+    let mut file = tc.read_file("read_from.txt");
     //need to put slice creation in loop (0-511, 512 - 1023 and so on)
     let file_slice = if file.len() > 512 {
         &file[0..512]
@@ -89,12 +88,12 @@ fn main() {
     //necessary to add break after several error messages
     loop {
         let (_number_of_bytes, src_addr) =
-            TC.receive(&mut socket, &mut r_buf)?;
+            tc.receive(&mut socket, &mut r_buf).unwrap();
         let message = Message::try_from(&r_buf[..]).expect("can't convert buf to message");
         match message {
             Message::Ack(0) => {
                 println!("receive ack message");
-                TC.connect(&mut socket, src_addr)?;
+                tc.connect(&mut socket, src_addr).unwrap();
                 break;
             }
 
@@ -106,8 +105,8 @@ fn main() {
     let packet: Vec<u8> = data(block_id, file_slice).unwrap().into();
 
     loop {
-        TC.send(&mut socket, packet.as_slice())?;
-        TC.receive(&mut socket, &mut r_buf)?;
+        tc.send(&mut socket, packet.as_slice()).unwrap();
+        tc.receive(&mut socket, &mut r_buf).unwrap();
         let message = Message::try_from(&r_buf[..]).expect("can't convert buf to message");
         match message {
             Message::Ack(id) => {
