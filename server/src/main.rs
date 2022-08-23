@@ -6,7 +6,8 @@ use std::{
     time::{self, Duration},
 };
 
-use message::{FileOperation, Message};
+use tftp::{FileOperation, Message};
+use message::{ack, data, error};
 
 fn main() {
     let mut socket = UdpSocket::bind("127.0.0.1:69").expect("couldn't bind to address");
@@ -26,7 +27,7 @@ fn main() {
                 println!("receive wrq message");
                 socket = UdpSocket::bind("127.0.0.1:8080").expect("couldn't bind to address");
                 socket.connect(src_addr).expect("connect function failed");
-                let packet: Vec<u8> = Message::ack(0).into();
+                let packet: Vec<u8> = ack(0).into();
                 socket.send(packet.as_slice()).expect("couldn't send data");
                 break;
             }
@@ -46,7 +47,7 @@ fn main() {
                 println!("receive data packet");
                 dbg!(str::from_utf8(data.as_ref()).expect("can't read message"));
 
-                let packet: Vec<u8> = Message::ack(block_id).into();
+                let packet: Vec<u8> = ack(block_id).into();
                 f.write(data.as_ref()).unwrap();
                 thread::sleep(time::Duration::from_secs(1));
                 socket.send(packet.as_slice()).expect("couldn't send data");
