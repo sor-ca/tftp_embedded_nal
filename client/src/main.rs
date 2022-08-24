@@ -18,7 +18,7 @@ impl TftpClient {
     //Usually in such cases, buffers are used
     pub fn read_file(&mut self, filename: &str) -> Vec<u8> {
         let mut buf: Vec<u8> = vec![];
-        let mut f = File::open(filename).unwrap();
+        let mut f = File::open(filename).expect("can't open file");
         f.read_to_end(&mut buf).expect("can't read file");
         buf
     }
@@ -66,6 +66,9 @@ fn main() {
     let mut tc = TftpClient::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)));
     let mut socket = tc.socket().unwrap();
     tc.bind(&mut socket, 8081).unwrap();
+    socket
+        .set_read_timeout(Some(Duration::from_secs(10)))
+        .unwrap();
 
     let path = "read_from.txt";
 
@@ -75,21 +78,14 @@ fn main() {
     tc.send_to(&mut socket,
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 69), 
             packet.as_slice()).unwrap();
-    
-    let mut file = tc.read_file("read_from.txt");
-    //need to put slice creation in loop (0-511, 512 - 1023 and so on)
-    let file_slice = if file.len() > 512 {
-        &file[0..512]
-    } else {
-        &file[..]
-    };
 
-    let mut r_buf = [0; 516];
     //necessary to add break after several error messages
     loop {
-        let (_number_of_bytes, src_addr) =
+        let mut r_buf = [0; 516];
+        let (number_of_bytes, src_addr) =
             tc.receive(&mut socket, &mut r_buf).unwrap();
-        let message = Message::try_from(&r_buf[..]).expect("can't convert buf to message");
+        let filled_buf = &mut r_buf[..number_of_bytes];
+        let message = Message::try_from(&filled_buf[..]).expect("can't convert buf to message");
         match message {
             Message::Ack(0) => {
                 println!("receive ack message");
@@ -101,26 +97,47 @@ fn main() {
         }
     }
 
-    let block_id = 1u16;
-    let packet: Vec<u8> = data(block_id, file_slice).unwrap().into();
+    let vec = tc.read_file("read_from.txt");
+    let mut i = 0;
+    let mut j = 512;
+    let mut vec_slice: &[u8];
 
     loop {
-        tc.send(&mut socket, packet.as_slice()).unwrap();
-        tc.receive(&mut socket, &mut r_buf).unwrap();
-        let message = Message::try_from(&r_buf[..]).expect("can't convert buf to message");
-        match message {
-            Message::Ack(id) => {
-                if id == block_id {
-                    println!("receive ack message");
-                    break;
-                } else {
-                    println!("wrong block id");
-                    continue;
-                };
+        vec_slice = if vec.len() > j {
+            &vec[i..j]
+        } else {
+            &vec[i..]
+        };
+        i += 512;
+        j += 512;
+    
+        let block_id = 1u16;
+        let packet: Vec<u8> = data(block_id, vec_slice).unwrap().into();
+    
+        loop {
+            tc.send(&mut socket, packet.as_slice()).unwrap();
+            let mut r_buf = [0; 516];
+            let (number_of_bytes, _src_addr) = tc.receive(&mut socket, &mut r_buf).unwrap();
+            let filled_buf = &mut r_buf[..number_of_bytes];
+            let message = Message::try_from(&filled_buf[..]).expect("can't convert buf to message");
+            match message {
+                Message::Ack(id) => {
+                    if id == block_id {
+                        println!("receive ack message");
+                        break;
+                    } else {
+                        println!("wrong block id");
+                        continue;
+                    };
+                }
+                _ => continue,
             }
-            _ => continue,
         }
-    }
+        if vec.len() <= j {
+            println!("file came to end");
+            break;
+        } 
+    }       
 }
 
 /*fn main() {

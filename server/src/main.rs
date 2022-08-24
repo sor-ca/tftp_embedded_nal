@@ -14,11 +14,13 @@ fn main() {
     socket
         .set_read_timeout(Some(Duration::from_secs(100)))
         .unwrap();
-    let mut buf = [0; 516];
+
     //necessary to add break after several error messages
-    loop {
-        let (_number_of_bytes, src_addr) = socket.recv_from(&mut buf).expect("didn't receive data");
-        let message = Message::try_from(&buf[..]).expect("can't convert buf to message");
+    loop { 
+        let mut buf = [0; 516];   
+        let (number_of_bytes, src_addr) = socket.recv_from(&mut buf).expect("didn't receive data");
+        let filled_buf = &mut buf[..number_of_bytes]; 
+        let message = Message::try_from(&filled_buf[..]).expect("can't convert buf to message");
         match message {
             Message::File {
                 operation: FileOperation::Write,
@@ -37,18 +39,22 @@ fn main() {
     }
 
     let mut f = File::create("write_into.txt").unwrap();
+    let mut vec = Vec::with_capacity(1024*1024);
 
     //necessary to add break after several error messages
     loop {
-        socket.recv(&mut buf).expect("didn't receive data");
-        let message = Message::try_from(&buf[..]).expect("can't convert buf to message");
+        let mut buf = [0; 516];
+        let number_of_bytes = socket.recv(&mut buf).expect("didn't receive data");
+        let filled_buf = &mut buf[..number_of_bytes];
+        let message = Message::try_from(&filled_buf[..]).expect("can't convert buf to message");
         match message {
             Message::Data(block_id, data) => {
                 println!("receive data packet");
                 dbg!(str::from_utf8(data.as_ref()).expect("can't read message"));
+                vec.extend_from_slice(data.as_ref());
+                //f.write(data.as_ref()).unwrap();
 
                 let packet: Vec<u8> = ack(block_id).into();
-                f.write(data.as_ref()).unwrap();
                 thread::sleep(time::Duration::from_secs(1));
                 socket.send(packet.as_slice()).expect("couldn't send data");
                 break;
@@ -57,4 +63,5 @@ fn main() {
             _ => continue,
         }
     }
+    f.write(vec.as_slice()).unwrap();
 }

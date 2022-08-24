@@ -13,6 +13,6 @@ alloc = []
 ascii = "1"
 tftp = { git = "https://github.com/ivan770/tftp" }
 nb = "1"
-heapless = "0.7.16"
+#heapless = "0.7.16"
 #enumn = "0.1"
 #displaydoc = "0.2"
