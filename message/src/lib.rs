@@ -1,7 +1,7 @@
-use ascii::AsciiStr;
-use nb;
-use nb::Result;
 use std::path::PathBuf;
+
+use ascii::AsciiStr;
+use nb::Result;
 use tftp::{BufAtMost512, FileOperation, Message, Mode};
 
 pub fn wrq<'b>(path: &'b AsciiStr, octet_mode: bool) -> Result<Message<'b>, tftp::Error> {

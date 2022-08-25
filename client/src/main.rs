@@ -1,8 +1,6 @@
-use nb;
-use std::io;
 use std::{
     fs::File,
-    io::Read,
+    io::{self, Read},
     net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket},
     time::Duration,
 };
