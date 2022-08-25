@@ -6,8 +6,8 @@ use std::{
     time::{self, Duration},
 };
 
-use tftp::{FileOperation, Message};
 use message::{ack, data, error};
+use tftp::{FileOperation, Message};
 
 fn main() {
     let mut socket = UdpSocket::bind("127.0.0.1:69").expect("couldn't bind to address");
@@ -16,10 +16,10 @@ fn main() {
         .unwrap();
 
     //necessary to add break after several error messages
-    loop { 
-        let mut buf = [0; 516];   
+    loop {
+        let mut buf = [0; 516];
         let (number_of_bytes, src_addr) = socket.recv_from(&mut buf).expect("didn't receive data");
-        let filled_buf = &mut buf[..number_of_bytes]; 
+        let filled_buf = &mut buf[..number_of_bytes];
         let message = Message::try_from(&filled_buf[..]).expect("can't convert buf to message");
         match message {
             Message::File {
@@ -39,7 +39,7 @@ fn main() {
     }
 
     let mut f = File::create("write_into.txt").unwrap();
-    let mut vec = Vec::with_capacity(1024*1024);
+    let mut vec = Vec::with_capacity(1024 * 1024);
 
     //necessary to add break after several error messages
     loop {
