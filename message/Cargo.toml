@@ -7,5 +7,5 @@ edition = "2021"
 
 [dependencies]
 ascii = "1"
-tftp = { git = "https://github.com/ivan770/tftp" }
+tftp = "0.1.0"
 nb = "1"

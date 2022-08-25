@@ -96,7 +96,8 @@ dependencies = [
 [[package]]
 name = "tftp"
 version = "0.1.0"
-source = "git+https://github.com/ivan770/tftp#9c43dcf37083cad58408905ed97fcc1d3b8e3cd8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab5101ac9e94aee5a131939b155cbabf8f59faad06f19b03386cc9a200ce509d"
 dependencies = [
  "ascii",
  "displaydoc",
