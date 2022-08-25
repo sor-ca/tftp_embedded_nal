@@ -14,6 +14,8 @@ version = "0.1.0"
 dependencies = [
  "ascii",
  "message",
+ "nb",
+ "tftp",
 ]
 
 [[package]]
@@ -43,9 +45,15 @@ name = "message"
 version = "0.1.0"
 dependencies = [
  "ascii",
- "displaydoc",
- "enumn",
+ "nb",
+ "tftp",
 ]
+
+[[package]]
+name = "nb"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "546c37ac5d9e56f55e73b677106873d9d9f5190605e41a856503623648488cae"
 
 [[package]]
 name = "proc-macro2"
@@ -71,6 +79,7 @@ version = "0.1.0"
 dependencies = [
  "ascii",
  "message",
+ "tftp",
 ]
 
 [[package]]
@@ -82,6 +91,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "tftp"
+version = "0.1.0"
+source = "git+https://github.com/ivan770/tftp#9c43dcf37083cad58408905ed97fcc1d3b8e3cd8"
+dependencies = [
+ "ascii",
+ "displaydoc",
+ "enumn",
 ]
 
 [[package]]
