@@ -1,8 +1,8 @@
 use std::{
     fs::File,
     io::{Write, Read, Result},
-    net::{UdpSocket, SocketAddr, ToSocketAddrs},
-    str, thread,
+    net::{UdpSocket, ToSocketAddrs},
+    thread,
     time::{self, Duration},
 };
 
@@ -45,7 +45,7 @@ impl TftpServer {
 
     }
 
-    fn write(&mut self) {
+    fn write(&mut self) -> Result<()> {
         let mut f = File::create("write_into.txt").unwrap();
         let mut vec = Vec::with_capacity(1024*1024);
     
@@ -75,10 +75,58 @@ impl TftpServer {
             }
         }
         f.write(vec.as_slice()).unwrap();
+        Ok(())
     }
 
-    fn read(&mut self) {
-        todo!()
+    fn read(&mut self) -> Result<()> {
+        let mut vec: Vec<u8> = vec![];
+        let mut f = File::open("read_from.txt").expect("can't open file");
+        f.read_to_end(&mut vec).expect("can't read file");
+        let mut i = 0;
+        let mut j = 512;
+        let mut vec_slice: &[u8];
+        let mut block_id = 1u16;
+
+        loop {
+            vec_slice = if vec.len() > j {
+                &vec[i..j]
+            } else {
+                &vec[i..]
+            };
+    
+            let packet: Vec<u8> = data(block_id, vec_slice).unwrap().into();
+
+            loop {
+                self.socket.send(packet.as_slice()).expect("couldn't send data");
+                let mut r_buf = [0; 516];
+                let number_of_bytes = self.socket.recv(&mut r_buf).expect("didn't receive data");
+                let filled_buf = &mut r_buf[..number_of_bytes];
+                let message = Message::try_from(&filled_buf[..]).expect("can't convert buf to message");
+                
+                match message {
+                    Message::Ack(id) => {
+                        if id == block_id {
+                            println!("receive ack message");
+                            block_id += 1;
+                            break;
+                        } else {
+                            println!("wrong block id");
+                            continue;
+                        };
+                    }
+                    _ => continue,
+                }
+            }
+           
+            if vec.len() <= j {
+                println!("file came to end");
+                break;
+            }
+            i += 512;
+            j += 512;
+        }
+        Ok(())
+        //todo!()
     }
 }
 
@@ -89,9 +137,9 @@ fn main() {
         .unwrap();
     let result = server.listen("127.0.0.1:8080").expect("no request");
     match result {
-        FileOperation::Write => server.write(),
-        FileOperation::Read => server.read(),
-    }
+        FileOperation::Write => server.write().expect("server writing error"),
+        FileOperation::Read => server.read().expect("server reading error"),
+    };
 }
 
 /*fn main() {

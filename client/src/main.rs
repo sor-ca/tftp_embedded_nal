@@ -110,7 +110,7 @@ impl TftpClient {
             .send_to(packet.as_slice(), SocketAddr::new(remote, 69))
             .expect("couldn't send data");
 
-        let mut block_id = 0u16;
+        let mut block_id = 1u16;
         let mut vec = Vec::with_capacity(1024*1024);
         //i think it is dirty hack but haven't find anymeting else yet
         let mut file_end = false;
@@ -128,19 +128,18 @@ impl TftpClient {
                     }
                     println!("receive data message");
                     self.socket.connect(src_addr).expect("connect failed");
-                    vec.extend_from_slice(data.as_ref());
-                    if filled_buf.len() < 516 {
-                        let packet: Vec<u8> = ack(0).into();
-                        self.socket.send(packet.as_slice()).expect("couldn't send data");
-                        file_end = true;
-                        break;
-                    }
+                    vec.extend_from_slice(data.as_ref());                 
                     let packet: Vec<u8> = ack(id).into();
                     //thread::sleep(time::Duration::from_secs(1));
                     self.socket.send(packet.as_slice()).expect("couldn't send data");
-                    block_id += 1;
-                    break;
-                }
+                    if filled_buf.len() < 516 {
+                        println!("file came to end");
+                        file_end = true;
+                    } else {
+                        block_id += 1;
+                    };
+                    break;                    
+                },
                 _ => continue,
             }
         }
@@ -153,21 +152,25 @@ impl TftpClient {
                 let filled_buf = &mut buf[..number_of_bytes];
                 let message = Message::try_from(&filled_buf[..]).expect("can't convert buf to message");
                 match message {
-                    Message::Data(block_id, data) => {
+                    Message::Data(id, data) => {
                         println!("receive data packet");
-                        dbg!(str::from_utf8(data.as_ref()).expect("can't read message"));
-                        vec.extend_from_slice(data.as_ref());
-                        if number_of_bytes < 516 {
-                            file_end = true;
-                            let packet: Vec<u8> = ack(0).into();
-                            self.socket.send(packet.as_slice()).expect("couldn't send data");
-                            break;
+                        if id != block_id {
+                            println!("wrong block id");
+                            continue;
                         }
+                        vec.extend_from_slice(data.as_ref());
 
                         let packet: Vec<u8> = ack(block_id).into();
                         //thread::sleep(time::Duration::from_secs(1));
                         self.socket.send(packet.as_slice()).expect("couldn't send data");
-                        continue;
+                        if number_of_bytes < 516 {
+                            file_end = true;
+                            println!("file came to end");
+                            break;
+                        } else {
+                            block_id += 1;
+                            continue;
+                        }    
                     }
                     _ => continue,
                 }        
@@ -186,7 +189,8 @@ impl TftpClient {
 fn main() {
     let mut client = TftpClient::new("127.0.0.1:8081");
     let remote = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
-    client.send_file("read_from.txt", remote).unwrap();
+    //client.send_file("read_from.txt", remote).unwrap();
+    client.read_file("read_from.txt", remote).unwrap();
 }
 
 
