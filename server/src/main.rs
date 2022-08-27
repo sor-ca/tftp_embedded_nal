@@ -22,22 +22,22 @@ impl TftpServer {
     }
 
     //port 8080
-    fn listen<A: ToSocketAddrs>(&mut self, socket_addr: A) -> Result<FileOperation> {
+    fn listen<A: ToSocketAddrs>(&mut self, socket_addr: A) -> Result<(FileOperation, &str)> {
         loop { 
             let mut buf = [0; 516];   
             let (number_of_bytes, src_addr) = self.socket.recv_from(&mut buf).expect("didn't receive data");
             let filled_buf = &mut buf[..number_of_bytes]; 
             let message = Message::try_from(&filled_buf[..]).expect("can't convert buf to message");
             match message {
-                Message::File {operation, ..} => {     
+                Message::File {operation, path, ..} => {     
                     println!("receive request");
                     self.socket = UdpSocket::bind(socket_addr).expect("couldn't bind to address");
                     self.socket.connect(src_addr).expect("connect function failed");
                     let packet: Vec<u8> = ack(0).into();
                     self.socket.send(packet.as_slice()).expect("couldn't send data");
                     let file_operation = operation;
-                    //let filename = path.as_str();
-                    return Ok(file_operation);
+                    let filename = *path.clone().as_str();
+                    return Ok((file_operation, filename));
                 }
                 _ => continue,
             }
@@ -78,9 +78,10 @@ impl TftpServer {
         Ok(())
     }
 
-    fn read(&mut self) -> Result<()> {
+    fn read(&mut self, filename: &str) -> Result<()> {
         let mut vec: Vec<u8> = vec![];
-        let mut f = File::open("read_from.txt").expect("can't open file");
+        //let mut f = File::open("read_from.txt").expect("can't open file");
+        let mut f = File::open(filename).expect("can't open file");
         f.read_to_end(&mut vec).expect("can't read file");
         let mut i = 0;
         let mut j = 512;
@@ -137,9 +138,13 @@ fn main() {
         .unwrap();
     let result = server.listen("127.0.0.1:8080").expect("no request");
     match result {
-        FileOperation::Write => server.write().expect("server writing error"),
-        FileOperation::Read => server.read().expect("server reading error"),
+        (FileOperation::Write, ..) => server.write().expect("server writing error"),
+        (FileOperation::Read, filename) => server.read(filename).expect("server reading error"),
     };
+    //match result {
+        //FileOperation::Write => server.write().expect("server writing error"),
+        //FileOperation::Read => server.read().expect("server reading error"),
+    //};
 }
 
 /*fn main() {
