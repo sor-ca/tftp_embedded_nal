@@ -1,12 +1,11 @@
 use std::{str, fs::File, io::{Read, Write},
             net::{UdpSocket, IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs}, 
             time::Duration};
-//use nb;
 use std::io;
 
 use ascii::AsciiStr;
+use message::{ack, data, error, rrq, wrq};
 use tftp::Message;
-use message::{wrq, rrq, ack, data, error};
 
 pub struct TftpClient {
     socket: UdpSocket,
@@ -19,11 +18,11 @@ impl TftpClient {
                             .expect("couldn't bind to address")
         }        
     }
+
     fn send_file(&mut self, path: &str, remote: IpAddr) -> io::Result<()> {
         self.socket
             .set_read_timeout(Some(Duration::from_secs(10)))
             .unwrap();
-
         let packet: Vec<u8> = wrq(AsciiStr::from_ascii(path.as_bytes()).unwrap(), true)
             .unwrap()
             .into();
@@ -175,15 +174,11 @@ impl TftpClient {
                     _ => continue,
                 }        
             }
-        }
-        
+        }        
         let mut f = File::create("write_into.txt").unwrap();
         f.write(vec.as_slice()).unwrap();
-
         Ok(())
     }
-
-
 }
 
 fn main() {
@@ -192,5 +187,3 @@ fn main() {
     //client.send_file("read_from.txt", remote).unwrap();
     client.read_file("read_from.txt", remote).unwrap();
 }
-
-

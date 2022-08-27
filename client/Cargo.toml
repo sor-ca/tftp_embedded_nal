@@ -9,4 +9,4 @@ edition = "2021"
 message = { path = "../message"}
 ascii = "1"
 nb = "1"
-tftp = { git = "https://github.com/ivan770/tftp" }
+tftp = "0.1.0"

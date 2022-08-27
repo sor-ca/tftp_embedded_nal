@@ -1,15 +1,2 @@
-[package]
-name = "tftp_std"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[features]
-default = ["alloc"]
-alloc = []
-
-[dependencies]
-
 [workspace]
 members = ["client", "server", "message"]
