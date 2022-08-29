@@ -1,7 +1,11 @@
-use std::{str, fs::File, io::{Read, Write},
-            net::{UdpSocket, IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs}, 
-            time::Duration};
-use std::io;
+//use std::io;
+use std::{
+    fs::File,
+    io::{self, Read, Write},
+    net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs, UdpSocket},
+    str,
+    time::Duration,
+};
 
 use ascii::AsciiStr;
 use message::{ack, data, error, rrq, wrq};
@@ -14,9 +18,8 @@ pub struct TftpClient {
 impl TftpClient {
     fn new<A: ToSocketAddrs>(socket_addr: A) -> Self {
         Self {
-            socket: UdpSocket::bind(socket_addr)
-                            .expect("couldn't bind to address")
-        }        
+            socket: UdpSocket::bind(socket_addr).expect("couldn't bind to address"),
+        }
     }
 
     fn send_file(&mut self, path: &str, remote: IpAddr) -> io::Result<()> {
@@ -29,12 +32,14 @@ impl TftpClient {
         self.socket
             .send_to(packet.as_slice(), SocketAddr::new(remote, 69))
             .expect("couldn't send data");
-        
+
         //necessary to add break after several error messages
         loop {
             let mut r_buf = [0; 516];
-            let (number_of_bytes, src_addr) =
-                self.socket.recv_from(&mut r_buf).expect("didn't receive data");
+            let (number_of_bytes, src_addr) = self
+                .socket
+                .recv_from(&mut r_buf)
+                .expect("didn't receive data");
             let filled_buf = &mut r_buf[..number_of_bytes];
             let message = Message::try_from(&filled_buf[..]).expect("can't convert buf to message");
             match message {
@@ -57,21 +62,20 @@ impl TftpClient {
         let mut block_id = 1u16;
 
         loop {
-            vec_slice = if vec.len() > j {
-                &vec[i..j]
-            } else {
-                &vec[i..]
-            };
-    
+            vec_slice = if vec.len() > j { &vec[i..j] } else { &vec[i..] };
+
             let packet: Vec<u8> = data(block_id, vec_slice).unwrap().into();
 
             loop {
-                self.socket.send(packet.as_slice()).expect("couldn't send data");
+                self.socket
+                    .send(packet.as_slice())
+                    .expect("couldn't send data");
                 let mut r_buf = [0; 516];
                 let number_of_bytes = self.socket.recv(&mut r_buf).expect("didn't receive data");
                 let filled_buf = &mut r_buf[..number_of_bytes];
-                let message = Message::try_from(&filled_buf[..]).expect("can't convert buf to message");
-                
+                let message =
+                    Message::try_from(&filled_buf[..]).expect("can't convert buf to message");
+
                 match message {
                     Message::Ack(id) => {
                         if id == block_id {
@@ -86,7 +90,7 @@ impl TftpClient {
                     _ => continue,
                 }
             }
-           
+
             if vec.len() <= j {
                 println!("file came to end");
                 break;
@@ -110,13 +114,16 @@ impl TftpClient {
             .expect("couldn't send data");
 
         let mut block_id = 1u16;
-        let mut vec = Vec::with_capacity(1024*1024);
+        let mut vec = Vec::with_capacity(1024 * 1024);
         //i think it is dirty hack but haven't find anymeting else yet
         let mut file_end = false;
 
         loop {
             let mut r_buf = [0; 516];
-            let (number_of_bytes, src_addr) = self.socket.recv_from(&mut r_buf).expect("didn't receive data");
+            let (number_of_bytes, src_addr) = self
+                .socket
+                .recv_from(&mut r_buf)
+                .expect("didn't receive data");
             let filled_buf = &mut r_buf[..number_of_bytes];
             let message = Message::try_from(&filled_buf[..]).expect("can't convert buf to message");
             match message {
@@ -127,29 +134,34 @@ impl TftpClient {
                     }
                     println!("receive data message");
                     self.socket.connect(src_addr).expect("connect failed");
-                    vec.extend_from_slice(data.as_ref());                 
+                    vec.extend_from_slice(data.as_ref());
                     let packet: Vec<u8> = ack(id).into();
                     //thread::sleep(time::Duration::from_secs(1));
-                    self.socket.send(packet.as_slice()).expect("couldn't send data");
+                    self.socket
+                        .send(packet.as_slice())
+                        .expect("couldn't send data");
                     if filled_buf.len() < 516 {
                         println!("file came to end");
                         file_end = true;
                     } else {
                         block_id += 1;
                     };
-                    break;                    
-                },
+                    break;
+                }
                 _ => continue,
             }
         }
 
-        if file_end == false {
+        if !file_end {
             //necessary to add break after several error messages
             loop {
                 let mut buf = [0; 516];
                 let number_of_bytes = self.socket.recv(&mut buf).expect("didn't receive data");
                 let filled_buf = &mut buf[..number_of_bytes];
-                let message = Message::try_from(&filled_buf[..]).expect("can't convert buf to message");
+                let message =
+                    Message::try_from(&filled_buf[..]).expect("can't convert buf to message");
+                //to stop after 3 errors
+                let mut error = 0;
                 match message {
                     Message::Data(id, data) => {
                         println!("receive data packet");
@@ -161,20 +173,30 @@ impl TftpClient {
 
                         let packet: Vec<u8> = ack(block_id).into();
                         //thread::sleep(time::Duration::from_secs(1));
-                        self.socket.send(packet.as_slice()).expect("couldn't send data");
+                        self.socket
+                            .send(packet.as_slice())
+                            .expect("couldn't send data");
                         if number_of_bytes < 516 {
-                            file_end = true;
+                            //file_end = true;
                             println!("file came to end");
                             break;
                         } else {
                             block_id += 1;
                             continue;
-                        }    
+                        }
                     }
-                    _ => continue,
-                }        
+                    _ => {
+                        error += 1;
+                        if error == 3 {
+                            println!("3 errors");
+                            break;
+                        } else {
+                            continue;
+                        }
+                    }
+                }
             }
-        }        
+        }
         let mut f = File::create("write_into.txt").unwrap();
         f.write(vec.as_slice()).unwrap();
         Ok(())
