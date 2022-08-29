@@ -13,7 +13,7 @@ pub fn wrq<'b>(path: &'b AsciiStr, octet_mode: bool) -> Result<Message<'b>, tftp
     Ok(Message::File {
         operation: FileOperation::Write,
         path,
-        mode: if octet_mode == true {
+        mode: if octet_mode {
             Mode::Binary
         } else {
             Mode::NetAscii
@@ -22,7 +22,7 @@ pub fn wrq<'b>(path: &'b AsciiStr, octet_mode: bool) -> Result<Message<'b>, tftp
 }
 
 // path - need to check if the file is available
-pub fn rrq<'b>(path: &'b AsciiStr, octet_mode: bool) -> Result<Message<'b>, tftp::Error> {
+/*pub fn rrq<'b>(path: &'b AsciiStr, octet_mode: bool) -> Result<Message<'b>, tftp::Error> {
     //Need to correct because this is std::fs function, I haven't found no_std equivalent
     if !PathBuf::from(path.as_str()).exists() {
         return Err(nb::Error::Other(tftp::Error::NoPath));
@@ -31,12 +31,24 @@ pub fn rrq<'b>(path: &'b AsciiStr, octet_mode: bool) -> Result<Message<'b>, tftp
     Ok(Message::File {
         operation: FileOperation::Read,
         path,
-        mode: if octet_mode == true {
+        mode: if octet_mode {
             Mode::Binary
         } else {
             Mode::NetAscii
         },
     })
+}*/
+
+pub fn rrq<'b>(path: &'b AsciiStr, octet_mode: bool) -> Message<'b> {
+    Message::File {
+        operation: FileOperation::Read,
+        path,
+        mode: if octet_mode {
+            Mode::Binary
+        } else {
+            Mode::NetAscii
+        },
+    }
 }
 
 pub fn data<'b>(block_id: u16, buf: &'b [u8]) -> Result<Message<'b>, tftp::Error> {

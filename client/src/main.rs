@@ -101,13 +101,13 @@ impl TftpClient {
         Ok(())
     }
 
-    fn read_file(&mut self, path: &str, remote: IpAddr) -> io::Result<()> {
+    fn read_file(&mut self, path: &str, remote: IpAddr) -> io::Result<Vec<u8>> {
         self.socket
             .set_read_timeout(Some(Duration::from_secs(10)))
             .unwrap();
 
         let packet: Vec<u8> = rrq(AsciiStr::from_ascii(path.as_bytes()).unwrap(), true)
-            .unwrap()
+            //.unwrap()
             .into();
         self.socket
             .send_to(packet.as_slice(), SocketAddr::new(remote, 69))
@@ -197,9 +197,9 @@ impl TftpClient {
                 }
             }
         }
-        let mut f = File::create("write_into.txt").unwrap();
-        f.write(vec.as_slice()).unwrap();
-        Ok(())
+        //let mut f = File::create("write_into.txt").unwrap();
+        //f.write(vec.as_slice()).unwrap();
+        Ok(vec)
     }
 }
 
@@ -207,5 +207,7 @@ fn main() {
     let mut client = TftpClient::new("127.0.0.1:8081");
     let remote = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
     //client.send_file("read_from.txt", remote).unwrap();
-    client.read_file("read_from.txt", remote).unwrap();
+    let vec = client.read_file("read_from.txt", remote).unwrap();
+    let mut f = File::create("write_into.txt").unwrap();
+    f.write(vec.as_slice()).unwrap();
 }
