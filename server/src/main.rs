@@ -20,9 +20,6 @@ impl TftpServer {
         }
     }
 
-    //port 8080
-    //fn listen<A: ToSocketAddrs>(&mut self, socket_addr: A) -> Result<(FileOperation, &str)> {
-    //fn listen<A: ToSocketAddrs>(&mut self, socket_addr: A) -> Result<(FileOperation, [u8; 516], usize)> {
     fn listen<A: ToSocketAddrs>(&mut self, socket_addr: A) -> Result<[u8; 516]> {
         loop {
             let mut buf = [0; 516];
@@ -33,24 +30,20 @@ impl TftpServer {
             let filled_buf = &mut buf[..number_of_bytes];
             let message = Message::try_from(&filled_buf[..]).expect("can't convert buf to message");
             match message {
-                //Message::File {operation, path, ..} => {
-                //Message::File { operation, .. } => {
                 Message::File { .. } => {
                     println!("receive request");
                     self.socket = UdpSocket::bind(socket_addr).expect("couldn't bind to address");
                     self.socket
                         .connect(src_addr)
                         .expect("connect function failed");
+
                     let packet: Vec<u8> = ack(0).into();
                     self.socket
                         .send(packet.as_slice())
                         .expect("couldn't send data");
-                    //let file_operation = operation;
                     let mut out_buf = [0; 516];
                     out_buf.clone_from_slice(&buf);
-                    //return Ok((file_operation, out_buf, number_of_bytes));
                     return Ok(out_buf);
-                    //return Ok(file_operation);
                 }
                 _ => continue,
             }
@@ -70,7 +63,6 @@ impl TftpServer {
             match message {
                 Message::Data(block_id, data) => {
                     println!("receive data packet");
-                    //dbg!(str::from_utf8(data.as_ref()).expect("can't read message"));
                     vec.extend_from_slice(data.as_ref());
 
                     let packet: Vec<u8> = ack(block_id).into();
@@ -93,9 +85,7 @@ impl TftpServer {
     }
 
     fn read(&mut self, filename: &str) -> Result<()> {
-        //fn read(&mut self) -> Result<()> {
         let mut vec: Vec<u8> = vec![];
-        //let mut f = File::open("read_from.txt").expect("can't open file");
         let mut f = File::open(filename).expect("can't open file");
         f.read_to_end(&mut vec).expect("can't read file");
         let mut i = 0;
@@ -152,10 +142,6 @@ fn main() {
         .unwrap();
     let result = server.listen("127.0.0.1:8080").expect("no request");
     let message: tftp::Message = result[..].try_into().unwrap();
-    //match result {
-    //(FileOperation::Write, ..) => server.write().expect("server writing error"),
-    //(FileOperation::Read, filename) => server.read(filename).expect("server reading error"),
-    //};
     match message {
         Message::File {
             operation: FileOperation::Write,

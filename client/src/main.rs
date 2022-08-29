@@ -1,4 +1,3 @@
-//use std::io;
 use std::{
     fs::File,
     io::{self, Read, Write},
@@ -107,7 +106,6 @@ impl TftpClient {
             .unwrap();
 
         let packet: Vec<u8> = rrq(AsciiStr::from_ascii(path.as_bytes()).unwrap(), true)
-            //.unwrap()
             .into();
         self.socket
             .send_to(packet.as_slice(), SocketAddr::new(remote, 69))
@@ -135,8 +133,8 @@ impl TftpClient {
                     println!("receive data message");
                     self.socket.connect(src_addr).expect("connect failed");
                     vec.extend_from_slice(data.as_ref());
+
                     let packet: Vec<u8> = ack(id).into();
-                    //thread::sleep(time::Duration::from_secs(1));
                     self.socket
                         .send(packet.as_slice())
                         .expect("couldn't send data");
@@ -197,8 +195,6 @@ impl TftpClient {
                 }
             }
         }
-        //let mut f = File::create("write_into.txt").unwrap();
-        //f.write(vec.as_slice()).unwrap();
         Ok(vec)
     }
 }
