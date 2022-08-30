@@ -1,10 +1,11 @@
-use std::path::PathBuf;
-
+//use std::path::PathBuf;
+//use displaydoc::Display;
 use ascii::AsciiStr;
-use nb::Result;
+use nb::{Result, Error};
 use tftp::{BufAtMost512, FileOperation, Message, Mode};
+use std::io;
 
-pub fn wrq<'b>(path: &'b AsciiStr, octet_mode: bool) -> Result<Message<'b>, tftp::Error> {
+/*pub fn wrq<'b>(path: &'b AsciiStr, octet_mode: bool) -> Result<Message<'b>, tftp::Error> {
     //Need to correct because this is std::fs function, I haven't found no_std equivalent,
     if !PathBuf::from(path.as_str()).exists() {
         return Err(nb::Error::Other(tftp::Error::NoPath));
@@ -19,6 +20,19 @@ pub fn wrq<'b>(path: &'b AsciiStr, octet_mode: bool) -> Result<Message<'b>, tftp
             Mode::NetAscii
         },
     })
+}*/
+
+pub fn wrq<'b>(path: &'b AsciiStr, octet_mode: bool) -> Message<'b> {
+    //Need to correct because this is std::fs function, I haven't found no_std equivalent,
+    Message::File {
+        operation: FileOperation::Write,
+        path,
+        mode: if octet_mode {
+            Mode::Binary
+        } else {
+            Mode::NetAscii
+        },
+    }
 }
 
 // path - need to check if the file is available
@@ -73,16 +87,48 @@ pub fn error<'b>(block_id: u16, error_message: &'b AsciiStr) -> Message<'b> {
 
 //i don't understand exactly how many variants of errors are necessary
 //for example, we need to add Error::IncorrectPath or something like that
-/*pub enum TftpClientError <'b> {
-    TFTP(tftp::Error),
+
+//#[derive(Debug, Display)]
+#[derive(Debug)]
+pub enum MyError {
+    TftpErr(tftp::Error),
+    UdpErr(UdpErr),
+    FileErr(io::Error),
+    WouldBlock,
     //Timeout,
-    //Undefined,
-    Message(&'b AsciiStr),
-    //UDP,
 }
 
-impl <'b>From<tftp::Error> for TftpClientError<'b> {
+#[derive(Debug)]
+pub enum UdpErr {
+    BindErr,
+    ConnectErr,
+    SendErr,
+    ReceiveErr,
+}
+
+impl From<tftp::Error> for MyError {
     fn from(e: tftp::Error) -> Self {
-        TftpClientError::TFTP(e)
+        MyError::TftpErr(e)
     }
-}*/
+}
+
+impl From<io::Error> for MyError {
+    fn from(e: io::Error) -> MyError {
+        MyError::FileErr(e)
+    }
+}
+
+impl From<UdpErr> for MyError {
+    fn from(e: UdpErr) -> MyError {
+        MyError::UdpErr(e)
+    }
+}
+
+impl From<nb::Error<tftp::Error>> for MyError {
+    fn from(e: nb::Error<tftp::Error>) -> MyError {
+        match e {
+            Error::Other(err) => MyError::TftpErr(err),
+            Error::WouldBlock => MyError::WouldBlock,
+        }
+    }
+}
