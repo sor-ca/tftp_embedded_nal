@@ -1,22 +1,147 @@
 use std::{
     fs::File,
-    io::{self, Read, Write},
-    net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs, UdpSocket},
+    io::{Read, Write},
+    //net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs, UdpSocket},
+    //net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs},
     str,
     time::Duration,
 };
 
+use no_std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
 use ascii::AsciiStr;
-use message::{ack, data, error, rrq, wrq};
+use message::{ack, data, rrq, wrq};
 use message::UdpErr::*;
-use tftp::{Message, Error};
+use tftp::{Message};
 use message::MyError;
 
+use embedded_nal::{self, UdpClientStack, UdpFullStack, UdpSocket};
+
+pub struct TftpClientEmbedded<T> where T: UdpClientStack + UdpFullStack  {
+    stack: T,
+    socket: T::UdpSocket,
+}
+
+impl<T: UdpClientStack + UdpFullStack> TftpClientEmbedded<T> {
+    fn new() -> Self {
+        let mut stack = <dyn UdpClientStack>::default();
+        let mut socket = stack.socket()?;
+        Self { stack, socket }
+    }
+
+    fn read_file_embedded(&mut self, path: &str, remote: IpAddr) -> Result<Vec<u8>, MyError> {
+
+        let packet: Vec<u8> = rrq(AsciiStr::from_ascii(path.as_bytes()).unwrap(), true)
+            .into();
+        self.stack
+            .send_to(&mut self.socket, SocketAddr::new(remote, 69), packet.as_slice())
+            .map_err(|_| MyError::UdpErr(SendErr))?;
+
+        let mut block_id = 1u16;
+        let mut vec = Vec::with_capacity(1024 * 1024);
+        let mut file_end = false;
+
+        loop {
+            let mut r_buf = [0; 516];
+            let (number_of_bytes, src_addr) = self.stack
+                .receive(&mut self.socket, &mut r_buf)
+                .map_err(|_| MyError::UdpErr(ReceiveErr))?;
+
+            let filled_buf = &mut r_buf[..number_of_bytes];
+            let message = Message::try_from(&filled_buf[..])?;
+            match message {
+                Message::Data(id, data) => {
+                    if id != block_id {
+                        println!("wrong block id");
+                        continue;
+                    }
+                    println!("receive data message");
+                    self.stack.connect(&mut self.socket, src_addr)
+                        .map_err(|_| MyError::UdpErr(ConnectErr))?;
+                    vec.extend_from_slice(data.as_ref());
+
+                    let packet: Vec<u8> = ack(id).into();
+                    self.stack.send(&mut self.socket, packet.as_slice())
+                        .map_err(|_| MyError::UdpErr(SendErr))?;
+
+                    if filled_buf.len() < 516 {
+                        println!("file came to end");
+                        file_end = true;
+                    } else {
+                        block_id += 1;
+                    };
+                    break;
+                }
+                _ => continue,
+            }
+        }
+
+        if !file_end {
+            //necessary to add break after several error messages
+            loop {
+                let mut r_buf = [0; 516];
+                let (number_of_bytes, _src_addr) =
+                    self.stack.receive(&mut self.socket, &mut r_buf)
+                    .map_err(|_| MyError::UdpErr(ReceiveErr))?;
+
+                let filled_buf = &mut r_buf[..number_of_bytes];
+                let message = Message::try_from(&filled_buf[..])?;
+
+                let mut error = 0;
+                match message {
+                    Message::Data(id, data) => {
+                        println!("receive data packet");
+                        if id != block_id {
+                            println!("wrong block id");
+                            continue;
+                        }
+                        vec.extend_from_slice(data.as_ref());
+
+                        let packet: Vec<u8> = ack(block_id).into();
+                        self.stack
+                            .send(&mut self.socket, packet.as_slice())
+                            .map_err(|_| MyError::UdpErr(SendErr))?;
+
+                        if number_of_bytes < 516 {
+                            //file_end = true;
+                            println!("file came to end");
+                            break;
+                        } else {
+                            block_id += 1;
+                            error = 0;
+                            continue;
+                        }
+                    }
+                    _ => {
+                        if error == 3 {
+                            println!("3 errors");
+                            break;
+                        } else {
+                            error += 1;
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+        Ok(vec)
+    }
+}
+//for embedded-nal
+fn main() {
+    let mut client = TftpClientEmbedded::new();
+    let remote = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
+    let vec = client.read_file_embedded("read_from.txt", remote).unwrap();
+    let mut f = File::create("write_into.txt").unwrap();
+    f.write(vec.as_slice()).unwrap();
+}
+
+/*
 pub struct TftpClient {
     socket: UdpSocket,
 }
 
 impl TftpClient {
+
     fn new<A: ToSocketAddrs>(socket_addr: A) -> Self {
         Self {
             socket: UdpSocket::bind(socket_addr).expect("client socket couldn't bind to address"),
@@ -103,6 +228,7 @@ impl TftpClient {
         }
         Ok(())
     }
+
 
     fn read_file(&mut self, path: &str, remote: IpAddr) -> Result<Vec<u8>, MyError> {
         self.socket
@@ -206,7 +332,7 @@ impl TftpClient {
             }
         }
         Ok(vec)
-    }
+    }*
 }
 
 fn main() {
@@ -216,4 +342,4 @@ fn main() {
     let vec = client.read_file("read_from.txt", remote).unwrap();
     let mut f = File::create("write_into.txt").unwrap();
     f.write(vec.as_slice()).unwrap();
-}
+}*/
