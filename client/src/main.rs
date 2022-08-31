@@ -7,14 +7,16 @@ use std::{
     time::Duration,
 };
 
-use no_std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
+//use no_std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
 use ascii::AsciiStr;
 use message::{ack, data, rrq, wrq};
 use message::UdpErr::*;
 use tftp::{Message};
 use message::MyError;
 
-use embedded_nal::{self, UdpClientStack, UdpFullStack, UdpSocket};
+use embedded_nal::{self,
+    UdpClientStack, UdpFullStack, UdpSocket,
+    SocketAddr, IpAddr, Ipv4Addr};
 
 pub struct TftpClientEmbedded<T> where T: UdpClientStack + UdpFullStack  {
     stack: T,
