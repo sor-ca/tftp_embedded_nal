@@ -1,11 +1,13 @@
 use std::{
     fs::File,
-    io::{self, Read, Write},
+    io::{Read, Write},
     net::{ToSocketAddrs, UdpSocket},
     thread,
     time::{self, Duration},
 };
 
+use std::path::PathBuf;
+use ascii::AsciiStr;
 use message::{ack, data, error, MyError};
 use message::UdpErr::*;
 use tftp::{FileOperation, Message, Error};
@@ -32,12 +34,22 @@ impl TftpServer {
             let filled_buf = &mut buf[..number_of_bytes];
             let message = Message::try_from(&filled_buf[..])?;
             match message {
-                Message::File { .. } => {
+                Message::File { operation: _, path, mode: _ } => {
                     println!("receive request");
                     self.socket = UdpSocket::bind(socket_addr).map_err(|_| MyError::UdpErr(BindErr))?;
                     self.socket
                         .connect(src_addr)
                         .map_err(|_| MyError::UdpErr(ConnectErr))?;
+
+                    if !PathBuf::from(path.as_str()).exists() {
+                        let packet: Vec<u8> = error(0,
+                            AsciiStr::from_ascii(b"invalid access, please check filename").unwrap())
+                            .into();
+                        self.socket
+                            .send(packet.as_slice())
+                            .map_err(|_| MyError::UdpErr(SendErr))?;
+                        return Err(MyError::TftpErr(Error::NoPath));
+                    }
 
                     let packet: Vec<u8> = ack(0).into();
                     self.socket
