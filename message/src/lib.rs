@@ -1,10 +1,10 @@
 use ascii::AsciiStr;
-use nb::{Result, Error};
 use tftp::{BufAtMost512, FileOperation, Message, Mode};
 use std::io;
+use embedded_nal::UdpClientStack;
+
 
 pub fn wrq<'b>(path: &'b AsciiStr, octet_mode: bool) -> Message<'b> {
-    //Need to correct because this is std::fs function, I haven't found no_std equivalent,
     Message::File {
         operation: FileOperation::Write,
         path,
@@ -28,18 +28,15 @@ pub fn rrq<'b>(path: &'b AsciiStr, octet_mode: bool) -> Message<'b> {
     }
 }
 
-pub fn data<'b>(block_id: u16, buf: &'b [u8]) -> Result<Message<'b>, tftp::Error> {
+pub fn data<'b, T>(block_id: u16, buf: &'b [u8]) -> Result<Message<'b>, MyError<T>> {
     let buf = BufAtMost512::try_from(buf);
     match buf {
         Ok(data) => Ok(Message::Data(block_id, data)),
-        Err(e) => Err(nb::Error::Other(tftp::Error::BufferTooLarge(e.0))),
+        Err(e) => Err(MyError::TftpErr(tftp::Error::BufferTooLarge(e.0))),
     }
 }
 
-//I don't know what to with lifetime in this case.
-//It is not necessary because there is no references but the compiler fails
 pub fn ack<'b>(block_id: u16) -> Message<'b> {
-    //I can't imagine what fail may occur
     Message::Ack(block_id)
 }
 
@@ -47,15 +44,16 @@ pub fn error<'b>(block_id: u16, error_message: &'b AsciiStr) -> Message<'b> {
     Message::Error(block_id, error_message)
 }
 
-//i don't understand exactly how many variants of errors are necessary
-//for example, we need to add Error::IncorrectPath or something like that
-
 #[derive(Debug)]
-pub enum MyError {
+pub enum MyError<T>
+where
+        T: UdpClientStack,
+{
     TftpErr(tftp::Error),
     UdpErr(UdpErr),
     FileErr(io::Error),
     WouldBlock,
+    UdpClientStackErr(T::Error)
 }
 
 #[derive(Debug)]
@@ -66,29 +64,58 @@ pub enum UdpErr {
     ReceiveErr,
 }
 
-impl From<tftp::Error> for MyError {
+impl<T> From<tftp::Error> for MyError<T>
+where
+        T: UdpClientStack,
+{
     fn from(e: tftp::Error) -> Self {
         MyError::TftpErr(e)
     }
 }
 
-impl From<io::Error> for MyError {
-    fn from(e: io::Error) -> MyError {
+impl<T> From<io::Error> for MyError<T>
+where
+        T: UdpClientStack,
+{
+    fn from(e: io::Error) -> Self {
         MyError::FileErr(e)
     }
 }
 
-impl From<UdpErr> for MyError {
-    fn from(e: UdpErr) -> MyError {
+impl<T> From<UdpErr> for MyError<T>
+where
+        T: UdpClientStack,
+{
+    fn from(e: UdpErr) -> Self {
         MyError::UdpErr(e)
     }
 }
 
-impl From<nb::Error<tftp::Error>> for MyError {
-    fn from(e: nb::Error<tftp::Error>) -> MyError {
-        match e {
-            Error::Other(err) => MyError::TftpErr(err),
-            Error::WouldBlock => MyError::WouldBlock,
-        }
+impl<T> From<T::Error> for MyError<T>
+where
+        T: UdpClientStack,
+{
+    fn from(e: T::Error) -> Self {
+        MyError::UdpClientStackErr(e)
     }
 }
+
+/*https://stackoverflow.com/a/37347504/9123725
+
+#[derive(Debug)]
+pub enum MyError2<T>
+where
+       T: UdpClientStack,
+{
+    // TftpErr(tftp::Error),
+    // UdpErr(UdpErr),
+    // FileErr(io::Error),
+    WouldBlock,
+    UdpClientStackErr(T),
+}
+
+impl<T: UdpClientStack<Error = T>> MyError<T> {
+    fn from_udp_stack_error(e: T::Error) -> Self {
+        MyError::UdpClientStackErr(e)
+    }
+}*/
