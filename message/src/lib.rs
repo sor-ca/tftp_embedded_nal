@@ -2,7 +2,7 @@ use ascii::AsciiStr;
 use tftp::{BufAtMost512, FileOperation, Message, Mode};
 use std::io;
 use embedded_nal::UdpClientStack;
-
+use embedded_nal::nb;
 
 pub fn wrq<'b>(path: &'b AsciiStr, octet_mode: bool) -> Message<'b> {
     Message::File {
@@ -28,7 +28,7 @@ pub fn rrq<'b>(path: &'b AsciiStr, octet_mode: bool) -> Message<'b> {
     }
 }
 
-pub fn data<'b, T>(block_id: u16, buf: &'b [u8]) -> Result<Message<'b>, MyError<T>> {
+pub fn data<'b, T: UdpClientStack>(block_id: u16, buf: &'b [u8]) -> Result<Message<'b>, MyError<T>> {
     let buf = BufAtMost512::try_from(buf);
     match buf {
         Ok(data) => Ok(Message::Data(block_id, data)),
@@ -53,7 +53,8 @@ where
     UdpErr(UdpErr),
     FileErr(io::Error),
     WouldBlock,
-    UdpClientStackErr(T::Error)
+    UdpClientStackErrnb(nb::Error<<T>::Error>),
+    UdpClientStackErr(<T>::Error),
 }
 
 #[derive(Debug)]
@@ -82,25 +83,25 @@ where
     }
 }
 
-impl<T> From<UdpErr> for MyError<T>
+/* impl<T> From<UdpErr> for MyError<T>
 where
         T: UdpClientStack,
 {
     fn from(e: UdpErr) -> Self {
         MyError::UdpErr(e)
     }
-}
+}*/
 
-impl<T> From<T::Error> for MyError<T>
+/* impl<T> From<T::Error> for MyError<T>
 where
         T: UdpClientStack,
 {
     fn from(e: T::Error) -> Self {
         MyError::UdpClientStackErr(e)
     }
-}
+}*/
 
-/*https://stackoverflow.com/a/37347504/9123725
+/* https://stackoverflow.com/a/37347504/9123725
 
 #[derive(Debug)]
 pub enum MyError2<T>

@@ -3,9 +3,11 @@ mod embedded_tftp {
     use embedded_nal::{SocketAddr, UdpClientStack};
     use ascii::AsciiStr;
     use message::{ack, data, rrq, wrq};
-    use message::UdpErr::*;
+    //use message::UdpErr::*;
     use tftp::{Message};
     use message::MyError;
+    use nb;
+    //use debugless_unwrap::DebuglessUnwrap;
 
     pub struct TftpClient<T>
     where
@@ -29,12 +31,14 @@ mod embedded_tftp {
             }
         }
 
-        pub fn read_file(&mut self, path: &str) -> Result<Vec<u8>, MyError> {
+        pub fn read_file(&mut self, path: &str) -> Result<Vec<u8>, MyError<T>>
+        {
             let packet: Vec<u8> = rrq(AsciiStr::from_ascii(path.as_bytes()).unwrap(), true)
             .into();
             self.udp
                 .send(&mut self.socket, packet.as_slice())
-                .map_err(|_| MyError::UdpErr(SendErr))?;
+                .map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
+                //.map_err(|_| MyError::UdpErr(SendErr))?;
 
             let mut block_id = 1u16;
             let mut vec = Vec::with_capacity(1024 * 1024);
@@ -44,7 +48,8 @@ mod embedded_tftp {
                 let mut r_buf = [0; 516];
                 let (number_of_bytes, src_addr) = self.udp
                     .receive(&mut self.socket, &mut r_buf)
-                    .map_err(|_| MyError::UdpErr(ReceiveErr))?;
+                    .map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
+                    //.map_err(|_| MyError::UdpErr(ReceiveErr))?;
 
                 let filled_buf = &mut r_buf[..number_of_bytes];
                 let message = Message::try_from(&filled_buf[..])?;
@@ -59,12 +64,14 @@ mod embedded_tftp {
                         //the problem is that according the embedded-nal,
                         //this fn creates the new socket binded with new port
                         self.udp.connect(&mut self.socket, src_addr)
-                            .map_err(|_| MyError::UdpErr(ConnectErr))?;
+                            .map_err(|e: T::Error| MyError::UdpClientStackErr(e))?;
+                            //.map_err(|_| MyError::UdpErr(ConnectErr))?;
                         vec.extend_from_slice(data.as_ref());
 
                         let packet: Vec<u8> = ack(id).into();
                         self.udp.send(&mut self.socket, packet.as_slice())
-                            .map_err(|_| MyError::UdpErr(SendErr))?;
+                            .map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
+                            //.map_err(|_| MyError::UdpErr(SendErr))?;
 
                         if filled_buf.len() < 516 {
                             println!("file came to end");
@@ -84,7 +91,8 @@ mod embedded_tftp {
                     let mut r_buf = [0; 516];
                     let (number_of_bytes, _src_addr) =
                         self.udp.receive(&mut self.socket, &mut r_buf)
-                        .map_err(|_| MyError::UdpErr(ReceiveErr))?;
+                        .map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
+                        //.map_err(|_| MyError::UdpErr(ReceiveErr))?;
 
                     let filled_buf = &mut r_buf[..number_of_bytes];
                     let message = Message::try_from(&filled_buf[..])?;
@@ -102,7 +110,8 @@ mod embedded_tftp {
                             let packet: Vec<u8> = ack(block_id).into();
                             self.udp
                                 .send(&mut self.socket, packet.as_slice())
-                                .map_err(|_| MyError::UdpErr(SendErr))?;
+                                .map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
+                                //.map_err(|_| MyError::UdpErr(SendErr))?;
 
                             if number_of_bytes < 516 {
                                 //file_end = true;
@@ -129,17 +138,20 @@ mod embedded_tftp {
             Ok(vec)
         }
 
-        pub fn send_file(&mut self, path: &str, data_vec: &[u8]) -> Result<(), MyError>{
+        pub fn send_file(&mut self, path: &str, data_vec: &[u8]) -> Result<(), MyError<T>>
+        {
             let packet: Vec<u8> = wrq(AsciiStr::from_ascii(path.as_bytes()).unwrap(), true).into();
             self.udp
                 .send(&mut self.socket, packet.as_slice())
-                .map_err(|_| MyError::UdpErr(SendErr))?;
+                .map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
+                //.map_err(|_| MyError::UdpErr(SendErr))?;
 
                 loop {
                     let mut r_buf = [0; 516];
                     let (number_of_bytes, src_addr) = self.udp
                         .receive(&mut self.socket, &mut r_buf)
-                        .map_err(|_| MyError::UdpErr(ReceiveErr))?;
+                        .map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
+                        //.map_err(|_| MyError::UdpErr(ReceiveErr))?;
 
                     let filled_buf = &mut r_buf[..number_of_bytes];
                     let message = Message::try_from(&filled_buf[..])?;
@@ -150,7 +162,8 @@ mod embedded_tftp {
                             //the problem is that according the embedded-nal,
                             //this fn creates the new socket binded with new port
                             self.udp.connect(&mut self.socket, src_addr)
-                                .map_err(|_| MyError::UdpErr(ConnectErr))?;
+                                .map_err(|e: T::Error| MyError::UdpClientStackErr(e))?;
+                                //.map_err(|_| MyError::UdpErr(ConnectErr))?;
                             break;
                         }
 
@@ -171,12 +184,14 @@ mod embedded_tftp {
                 loop {
                     self.udp
                         .send(&mut self.socket, packet.as_slice())
-                        .map_err(|_| MyError::UdpErr(SendErr))?;
+                        .map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
+                        //.map_err(|_| MyError::UdpErr(SendErr))?;
 
                     let mut r_buf = [0; 516];
                     let (number_of_bytes, _) = self.udp
                         .receive(&mut self.socket, &mut r_buf)
-                        .map_err(|_| MyError::UdpErr(ReceiveErr))?;
+                        .map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
+                        //.map_err(|_| MyError::UdpErr(ReceiveErr))?;
                     let filled_buf = &mut r_buf[..number_of_bytes];
 
                     let message =
@@ -216,7 +231,7 @@ use std_embedded_nal::Stack;
 
 fn main() {
     // create concrete implementation
-    let std_stack = Stack;
+    let std_stack = Stack::default();
 
     // create tftp client
     let mut client = TftpClient::new(
@@ -227,8 +242,15 @@ fn main() {
 
     // send file
     let msg = "Hello, world!".as_bytes();
-    client.send_file("file.txt", msg).unwrap();
+    match client.send_file("file.txt", msg) {
+        Ok(_) => (),
+        Err(_) => println!("can't send file"),
+    };
 
     // read file
-    let data = client.read_file("file2.txt").unwrap();
+    let data = match client.read_file("file2.txt") {
+        Ok(data) => data,
+        Err(_) => panic!("can't read file"),
+    };
+    println!("{:?}", data);
 }

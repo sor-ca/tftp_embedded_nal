@@ -11,19 +11,23 @@ use ascii::AsciiStr;
 use message::{ack, data, error, MyError};
 use message::UdpErr::*;
 use tftp::{FileOperation, Message, Error};
+use embedded_nal::UdpClientStack;
+use std_embedded_nal::Stack;
 
 pub struct TftpServer {
     socket: UdpSocket,
 }
 
-impl TftpServer {
+impl TftpServer
+{
     fn new<A: ToSocketAddrs>(socket_addr: A) -> Self {
         Self {
             socket: UdpSocket::bind(socket_addr).expect("couldn't bind server socket to address"),
         }
     }
 
-    fn listen<A: ToSocketAddrs>(&mut self, socket_addr: A) -> Result<[u8; 516], MyError> {
+    fn listen<A: ToSocketAddrs, T: UdpClientStack>(&mut self, socket_addr: A)
+        -> Result<[u8; 516], MyError<T>> {
         loop {
             let mut buf = [0; 516];
             let (number_of_bytes, src_addr) = self
@@ -48,6 +52,7 @@ impl TftpServer {
                         self.socket
                             .send(packet.as_slice())
                             .map_err(|_| MyError::UdpErr(SendErr))?;
+                            println!("send error message");
                         return Err(MyError::TftpErr(Error::NoPath));
                     }
 
@@ -65,7 +70,7 @@ impl TftpServer {
         }
     }
 
-    fn write(&mut self) -> Result<(), MyError> {
+    fn write<T: UdpClientStack>(&mut self) -> Result<(), MyError<T>> {
         let mut f = File::create("write_into.txt")?;
         let mut vec = Vec::with_capacity(1024 * 1024);
 
@@ -101,7 +106,7 @@ impl TftpServer {
         Ok(())
     }
 
-    fn read(&mut self, filename: &str) -> Result<(), MyError> {
+    fn read<T: UdpClientStack>(&mut self, filename: &str) -> Result<(), MyError<T>> {
         let mut vec: Vec<u8> = vec![];
         let mut f = File::open(filename)?;
         f.read_to_end(&mut vec)?;
@@ -112,7 +117,10 @@ impl TftpServer {
 
         loop {
             vec_slice = if vec.len() > j { &vec[i..j] } else { &vec[i..] };
-            let packet: Vec<u8> = data(block_id, vec_slice).unwrap().into();
+            let packet: Vec<u8> = match data::<T>(block_id, vec_slice) {
+                Ok(buf) => buf.into(),
+                Err(_) => panic!(),
+            };
 
             loop {
                 self.socket
@@ -156,18 +164,28 @@ fn main() {
     server.socket
         .set_read_timeout(Some(Duration::from_secs(100)))
         .unwrap();
-    let result = server.listen("127.0.0.1:8080").expect("no request");
+    let result = match server.listen::<&str, Stack>("127.0.0.1:8080") {
+        Ok(message)  => message,
+        Err(_) => panic!("no request"),
+    };
     let message: tftp::Message = result[..].try_into().unwrap();
     match message {
         Message::File {
             operation: FileOperation::Write,
             ..
-        } => server.write().expect("server writing error"),
+        } => match server.write::<Stack>() {
+            Ok(_)  => (),
+            Err(_) => panic!("server writing error"),
+        },
+
         Message::File {
             operation: FileOperation::Read,
             path,
             ..
-        } => server.read(path.as_str()).expect("server reading error"),
+        } => match server.read::<Stack>(path.as_str()) {
+            Ok(_)  => (),
+            Err(_) => panic!("server reading error"),
+        },
         //to satisfy the compiler
         _ => (),
     };

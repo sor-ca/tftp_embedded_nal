@@ -9,3 +9,5 @@ edition = "2021"
 message = { path = "../message"}
 ascii = "1"
 tftp = "0.1.0"
+embedded-nal = "0.6.0"
+std-embedded-nal = "0.1.3"
