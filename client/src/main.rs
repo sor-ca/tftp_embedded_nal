@@ -1,6 +1,6 @@
 /// that modules represents your library
 mod embedded_tftp {
-    use embedded_nal::{SocketAddr, UdpClientStack, UdpFullStack};
+    use embedded_nal::{SocketAddr, UdpClientStack, UdpFullStack, SocketAddrV6, Ipv6Addr};
     use ascii::AsciiStr;
     use message::{ack, data, rrq, wrq};
     use message::UdpErr::*;
@@ -14,19 +14,19 @@ mod embedded_tftp {
         T: UdpClientStack + UdpFullStack,
     {
         udp: T,
-        socket: T::UdpSocket,
+        pub socket: T::UdpSocket,
     }
 
     impl<T> TftpClient<T>
     where
         T: UdpClientStack + UdpFullStack,
     {
-        pub fn new(mut udp: T, remote_addr: SocketAddr) -> Self {
-        //pub fn new(mut udp: T) -> Self {
+        //pub fn new(mut udp: T, remote_addr: SocketAddr) -> Self {
+        pub fn new(mut udp: T) -> Self {
             let mut socket = udp.socket().unwrap();
-            //udp.bind(&mut socket, 8081).unwrap();
+            udp.bind(&mut socket, 8081).unwrap();
             //connects with remote address with port 69
-            udp.connect(&mut socket, remote_addr).unwrap();
+            //udp.connect(&mut socket, remote_addr).unwrap();
             Self {
                 udp: udp,
                 socket: socket,
@@ -40,8 +40,9 @@ mod embedded_tftp {
             println!("create packet");
             self.udp
                 .send_to(&mut self.socket, *remote_addr, packet.as_slice())
+                .unwrap();
                 //.map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
-                .map_err(|_| MyError::UdpErr(SendErr))?;
+                //.map_err(|_| MyError::UdpErr(SendErr))?;
             println!("send request");
 
             let mut block_id = 1u16;
@@ -52,8 +53,9 @@ mod embedded_tftp {
                 let mut r_buf = [0; 516];
                 let (number_of_bytes, src_addr) = self.udp
                     .receive(&mut self.socket, &mut r_buf)
+                    .unwrap();
                     //.map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
-                    .map_err(|_| MyError::UdpErr(ReceiveErr))?;
+                    //.map_err(|_| MyError::UdpErr(ReceiveErr))?;
 
                 let filled_buf = &mut r_buf[..number_of_bytes];
                 let message = Message::try_from(&filled_buf[..])?;
@@ -230,9 +232,12 @@ mod embedded_tftp {
 
 // following is a user who uses your library
 
-use embedded_nal::{Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::net::UdpSocket;
+
+use embedded_nal::{Ipv4Addr, SocketAddr, SocketAddrV6, SocketAddrV4};
 use embedded_tftp::TftpClient;
-use std_embedded_nal::Stack;
+use std_embedded_nal::{Stack};
+//use std_embedded_nal::{Stack, SocketState};
 
 fn main() {
     // create concrete implementation
@@ -242,8 +247,9 @@ fn main() {
     let mut client = TftpClient::new(
         std_stack,
         //embedded_nal::SocketAddr::new("127.0.0.1:69"),
-        embedded_nal::SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::localhost(), 69)),
+        //embedded_nal::SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::localhost(), 69)),
     );
+    //client.socket.state = SocketState::Bound(UdpSocket::bind("127.0.0.1:69").unwrap());
 
     // send file
     /*let msg = "Hello, world!".as_bytes();
@@ -253,9 +259,14 @@ fn main() {
     };*/
 
     // read file
+    //let mut remote_addr = embedded_nal::SocketAddr::V6(
+        //SocketAddrV6::new(
+            //Ipv4Addr::new(127, 0, 0, 1).to_ipv6_mapped(),
+            //69, 0, 0));
     let data = match client.read_file(
         "file2.txt",
         &mut SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::localhost(), 69)))
+        //&mut remote_addr)
         {
         Ok(data) => data,
         Err(_) => panic!("can't read file"),

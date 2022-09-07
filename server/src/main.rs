@@ -1,7 +1,7 @@
 use std::{
     fs::File,
     io::{Read, Write},
-    net::{ToSocketAddrs, UdpSocket},
+    net::{SocketAddr, UdpSocket, IpAddr, Ipv4Addr, Ipv6Addr},
     thread,
     time::{self, Duration},
 };
@@ -20,13 +20,13 @@ pub struct TftpServer {
 
 impl TftpServer
 {
-    fn new<A: ToSocketAddrs>(socket_addr: A) -> Self {
+    fn new(socket_addr: SocketAddr) -> Self {
         Self {
             socket: UdpSocket::bind(socket_addr).expect("couldn't bind server socket to address"),
         }
     }
 
-    fn listen<A: ToSocketAddrs, T: UdpClientStack>(&mut self, socket_addr: A)
+    fn listen<T: UdpClientStack>(&mut self, socket_addr: SocketAddr)
         -> Result<[u8; 516], MyError<T>> {
         loop {
             let mut buf = [0; 516];
@@ -160,11 +160,16 @@ impl TftpServer
 }
 
 fn main() {
-    let mut server = TftpServer::new("127.0.0.1:69");
+    //let mut socket_addr = SocketAddr::new(
+        //IpAddr::V6(Ipv4Addr::new(127, 0, 0, 1).to_ipv6_mapped()),
+        //69);
+    let mut socket_addr = SocketAddr::new(IpAddr::V6(Ipv6Addr::LOCALHOST), 69);
+    let mut server = TftpServer::new(socket_addr);
     server.socket
         .set_read_timeout(Some(Duration::from_secs(100)))
         .unwrap();
-    let result = match server.listen::<&str, Stack>("127.0.0.1:8080") {
+    socket_addr.set_port(8080);
+    let result = match server.listen::<Stack>(socket_addr) {
         Ok(message)  => message,
         Err(_) => panic!("no request"),
     };
@@ -175,7 +180,7 @@ fn main() {
             ..
         } => match server.write::<Stack>() {
             Ok(_)  => (),
-            Err(_) => panic!("server writing error"),
+            Err(_) => println!("server writing error"),
         },
 
         Message::File {
@@ -184,7 +189,7 @@ fn main() {
             ..
         } => match server.read::<Stack>(path.as_str()) {
             Ok(_)  => (),
-            Err(_) => panic!("server reading error"),
+            Err(_) => println!("server reading error"),
         },
         //to satisfy the compiler
         _ => (),
