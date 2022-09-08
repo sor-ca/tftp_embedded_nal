@@ -33,19 +33,29 @@ impl TftpServer
             let (number_of_bytes, src_addr) = self
                 .socket
                 .recv_from(&mut buf)
-                .map_err(|_| MyError::UdpErr(ReceiveErr))?;
+                .unwrap();
+                //.map_err(|_| MyError::UdpErr(ReceiveErr))?;
+
+            println!("scr_addr {:?}", src_addr);
 
             let filled_buf = &mut buf[..number_of_bytes];
             let message = Message::try_from(&filled_buf[..])?;
             match message {
                 Message::File { operation: _, path, mode: _ } => {
                     println!("receive request");
-                    self.socket = UdpSocket::bind(socket_addr).map_err(|_| MyError::UdpErr(BindErr))?;
+                    self.socket = UdpSocket::bind(socket_addr)
+                        .unwrap();
+                        //.map_err(|_| MyError::UdpErr(BindErr))?;
+                    println!("bind socket");
                     self.socket
                         .connect(src_addr)
-                        .map_err(|_| MyError::UdpErr(ConnectErr))?;
+                        //.connect(SocketAddr::new(IpAddr::V6(Ipv6Addr::LOCALHOST), 8081))
+                        .unwrap();
+                        //.map_err(|_| MyError::UdpErr(ConnectErr))?;
+                    println!("connect socket");
 
                     if !PathBuf::from(path.as_str()).exists() {
+                        println!("no path");
                         let packet: Vec<u8> = error(0,
                             AsciiStr::from_ascii(b"invalid access, please check filename").unwrap())
                             .into();
@@ -59,7 +69,9 @@ impl TftpServer
                     let packet: Vec<u8> = ack(0).into();
                     self.socket
                         .send(packet.as_slice())
-                        .map_err(|_| MyError::UdpErr(SendErr))?;
+                        .unwrap();
+                        //.map_err(|_| MyError::UdpErr(SendErr))?;
+                    println!("send ack");
 
                     let mut out_buf = [0; 516];
                     out_buf.clone_from_slice(&buf);
@@ -165,6 +177,7 @@ fn main() {
         //69);
     let mut socket_addr = SocketAddr::new(IpAddr::V6(Ipv6Addr::LOCALHOST), 69);
     let mut server = TftpServer::new(socket_addr);
+    println!("create server");
     server.socket
         .set_read_timeout(Some(Duration::from_secs(100)))
         .unwrap();

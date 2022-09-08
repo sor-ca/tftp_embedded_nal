@@ -234,7 +234,7 @@ mod embedded_tftp {
 
 use std::net::UdpSocket;
 
-use embedded_nal::{Ipv4Addr, SocketAddr, SocketAddrV6, SocketAddrV4};
+use embedded_nal::{Ipv4Addr, SocketAddr, SocketAddrV6, SocketAddrV4, IpAddr, Ipv6Addr};
 use embedded_tftp::TftpClient;
 use std_embedded_nal::{Stack};
 //use std_embedded_nal::{Stack, SocketState};
@@ -259,14 +259,16 @@ fn main() {
     };*/
 
     // read file
-    //let mut remote_addr = embedded_nal::SocketAddr::V6(
-        //SocketAddrV6::new(
+    let mut remote_addr = embedded_nal::SocketAddr::V6(
+        SocketAddrV6::new(
             //Ipv4Addr::new(127, 0, 0, 1).to_ipv6_mapped(),
-            //69, 0, 0));
+            //Ipv6Addr::LOCALHOST,
+            Ipv6Addr::localhost(),
+            69, 0, 0));
     let data = match client.read_file(
         "file2.txt",
-        &mut SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::localhost(), 69)))
-        //&mut remote_addr)
+        //&mut SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::localhost(), 69)))
+        &mut remote_addr)
         {
         Ok(data) => data,
         Err(_) => panic!("can't read file"),
