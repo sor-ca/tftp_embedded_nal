@@ -210,6 +210,7 @@ use std_embedded_nal::{Stack};
 use std::{
     fs::File,
     io::{Read, Write},
+    str::from_utf8,
 };
 
 fn main() {
@@ -226,7 +227,7 @@ fn main() {
             69, 0, 0));
 
     // read file
-    /*let data = match client.read_file(
+    let data = match client.read_file(
         "file2.txt",
         //&mut SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::localhost(), 69)))
         &mut remote_addr)
@@ -234,7 +235,9 @@ fn main() {
         Ok(data) => data,
         Err(_) => panic!("can't read file"),
     };
-    println!("{:?}", data);*/
+    let mut f = File::create("write_into.txt").unwrap();
+    f.write(data.as_slice()).unwrap();
+    println!("{:?}", from_utf8(data.as_slice()).unwrap());
 
     //send file
     let mut msg: Vec<u8> = vec![];

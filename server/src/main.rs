@@ -1,6 +1,7 @@
 use std::{
     fs::File,
     io::{Read, Write},
+    str::from_utf8,
     //thread,
     //time::{self, Duration},
 };
@@ -89,8 +90,7 @@ where T: UdpClientStack + UdpFullStack,
         }
     }
 
-    fn write(&mut self) -> Result<(), MyError<T>> {
-        let mut f = File::create("write_into.txt")?;
+    fn write(&mut self) -> Result<Vec<u8>, MyError<T>> {
         let mut vec = Vec::with_capacity(1024 * 1024);
 
         //necessary to add break after several error messages
@@ -127,14 +127,10 @@ where T: UdpClientStack + UdpFullStack,
                 _ => continue,
             }
         }
-        f.write(vec.as_slice()).unwrap();
-        Ok(())
+        Ok(vec)
     }
 
-    fn read(&mut self, filename: &str) -> Result<(), MyError<T>> {
-        let mut vec: Vec<u8> = vec![];
-        let mut f = File::open(filename)?;
-        f.read_to_end(&mut vec)?;
+    fn read(&mut self, vec: &mut Vec<u8>) -> Result<(), MyError<T>> {
         let mut i = 0;
         let mut j = 512;
         let mut vec_slice: &[u8];
@@ -214,7 +210,10 @@ fn main() {
             operation: FileOperation::Write,
             ..
         } => match server.write() {
-            Ok(_)  => (),
+            Ok(vec)  => {
+                let mut f = File::create("write_into.txt").unwrap();
+                f.write(vec.as_slice()).unwrap();
+            },
             Err(_) => println!("server writing error"),
         },
 
@@ -222,9 +221,14 @@ fn main() {
             operation: FileOperation::Read,
             path,
             ..
-        } => match server.read(path.as_str()) {
-            Ok(_)  => (),
-            Err(_) => println!("server reading error"),
+        } => {
+            let mut vec: Vec<u8> = vec![];
+            let mut f = File::open(path.as_str()).unwrap();
+            f.read_to_end(&mut vec).unwrap();
+            match server.read(&mut vec) {
+                Ok(_)  => (),
+                Err(_) => println!("server reading error"),
+            }
         },
         //to satisfy the compiler
         _ => (),
