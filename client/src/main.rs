@@ -143,103 +143,74 @@ mod embedded_tftp {
             Ok(vec)
         }
 
-        pub fn send_file(&mut self, path: &str, data_vec: &[u8]) -> Result<(), MyError<T>>
+        pub fn send_file(&mut self, remote_addr: &mut SocketAddr, path: &str, data_vec: &[u8]) -> Result<(), MyError<T>>
         {
-            let packet: Vec<u8> = wrq(AsciiStr::from_ascii(path.as_bytes()).unwrap(), true).into();
+            let mut packet: Vec<u8> = wrq(AsciiStr::from_ascii(path.as_bytes()).unwrap(), true).into();
             self.udp
-                .send(&mut self.socket, packet.as_slice())
+                .send_to(&mut self.socket, *remote_addr, packet.as_slice())
                 .map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
                 //.map_err(|_| MyError::UdpErr(SendErr))?;
 
-                loop {
-                    let mut r_buf = [0; 516];
-                    let result = self.udp
-                        .receive(&mut self.socket, &mut r_buf);
-                    let (number_of_bytes, src_addr) = match result {
-                        Ok(n,) => n,
-                        Err(nb::Error::WouldBlock) => continue,
-                        Err(_) => panic!("no request"),
-                    };
-
-                    let filled_buf = &mut r_buf[..number_of_bytes];
-                    let message = Message::try_from(&filled_buf[..])?;
-                    match message {
-                        Message::Ack(0) => {
-                            println!("receive ack message");
-                            //connect with new server's address from message
-                            //the problem is that according the embedded-nal,
-                            //this fn creates the new socket binded with new port
-                            self.udp.connect(&mut self.socket, src_addr)
-                                .map_err(|e: T::Error| MyError::UdpClientStackErr(e))?;
-                                //.map_err(|_| MyError::UdpErr(ConnectErr))?;
-                            break;
-                        }
-
-                        _ => continue,
-                    }
-                }
-
-            let mut i = 0;
-            let mut j = 512;
-            let mut vec_slice: &[u8];
-            let mut block_id = 1u16;
-
-            loop {
-                vec_slice = if data_vec.len() > j { &data_vec[i..j] } else { &data_vec[i..] };
-
-                let packet: Vec<u8> = data(block_id, vec_slice)?.into();
+                let mut i = 0;
+                let mut j = 512;
+                let mut vec_slice: &[u8];
+                let mut block_id = 0u16;
 
                 loop {
-                    self.udp
-                        .send(&mut self.socket, packet.as_slice())
-                        .map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
-                        //.map_err(|_| MyError::UdpErr(SendErr))?;
+                    vec_slice = if data_vec.len() > j { &data_vec[i..j] } else { &data_vec[i..] };
 
-                    let mut r_buf = [0; 516];
-                    let result = self.udp
-                        .receive(&mut self.socket, &mut r_buf);
-                    let (number_of_bytes, _src_addr) = match result {
-                        Ok(n,) => n,
-                        Err(nb::Error::WouldBlock) => continue,
-                        Err(_) => panic!("no request"),
-                    };
+                    loop {
+                        let mut r_buf = [0; 516];
+                        let result = self.udp
+                            .receive(&mut self.socket, &mut r_buf);
+                        let (number_of_bytes, src_addr) = match result {
+                            Ok(n,) => n,
+                            Err(nb::Error::WouldBlock) => continue,
+                            Err(_) => panic!("no request"),
+                        };
 
-                    let filled_buf = &mut r_buf[..number_of_bytes];
-
-                    let message =
-                        Message::try_from(&filled_buf[..])?;
-                    match message {
-                        Message::Ack(id) => {
-                            if id == block_id {
-                                println!("receive ack message");
-                                block_id += 1;
-                                break;
-                            } else {
-                                println!("wrong block id");
-                                continue;
-                            };
+                        let filled_buf = &mut r_buf[..number_of_bytes];
+                        let message = Message::try_from(&filled_buf[..])?;
+                        match message {
+                            Message::Ack(id) => {
+                                    if id == block_id {
+                                        println!("receive ack message");
+                                        block_id += 1;
+                                        packet = data(block_id, vec_slice)?.into();
+                                        self.udp
+                                            .send_to(&mut self.socket, src_addr, packet.as_slice())
+                                            .map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
+                                            //.map_err(|_| MyError::UdpErr(SendErr))?;
+                                        break;
+                                    } else {
+                                        println!("wrong block id");
+                                        continue;
+                                    };
+                                }
+                            _ => continue,
                         }
-                        _ => continue,
+                    }if data_vec.len() <= j {
+                        println!("file came to end");
+                        break;
                     }
+                    i += 512;
+                    j += 512;
                 }
-
-                if data_vec.len() <= j {
-                    println!("file came to end");
-                    break;
-                }
-                i += 512;
-                j += 512;
+                Ok(())
             }
-            Ok(())
         }
     }
-}
+
 
 // following is a user who uses your library
 use embedded_nal::{SocketAddrV6, Ipv6Addr};
     //SocketAddrV4, IpAddr, Ipv4Addr, SocketAddr};
 use embedded_tftp::TftpClient;
 use std_embedded_nal::{Stack};
+use std::{
+    fs::File,
+    io::{Read, Write},
+};
 
 fn main() {
     // create concrete implementation
@@ -249,15 +220,13 @@ fn main() {
     let mut client = TftpClient::new(
         std_stack,
     );
-
-    // read file
     let mut remote_addr = embedded_nal::SocketAddr::V6(
         SocketAddrV6::new(
-            //Ipv4Addr::new(127, 0, 0, 1).to_ipv6_mapped(),
-            //Ipv6Addr::LOCALHOST,
             Ipv6Addr::localhost(),
             69, 0, 0));
-    let data = match client.read_file(
+
+    // read file
+    /*let data = match client.read_file(
         "file2.txt",
         //&mut SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::localhost(), 69)))
         &mut remote_addr)
@@ -265,12 +234,15 @@ fn main() {
         Ok(data) => data,
         Err(_) => panic!("can't read file"),
     };
-    println!("{:?}", data);
+    println!("{:?}", data);*/
 
     //send file
-    /*let msg = "Hello, world!".as_bytes();
-    match client.send_file("file.txt", msg) {
+    let mut msg: Vec<u8> = vec![];
+    let mut f = File::open("read_from.txt").unwrap();
+    f.read_to_end(&mut msg).unwrap();
+    //let msg = "Hello, world!".as_bytes();
+    match client.send_file(&mut remote_addr, "file.txt", &msg) {
         Ok(_) => (),
         Err(_) => println!("can't send file"),
-    };*/
+    };
 }
