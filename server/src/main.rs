@@ -8,6 +8,7 @@ use std::{
 
 use std::path::PathBuf;
 use ascii::AsciiStr;
+use nb;
 use message::{ack, data, error, MyError};
 use message::UdpErr::*;
 use tftp::{FileOperation, Message, Error};
@@ -39,10 +40,13 @@ where T: UdpClientStack + UdpFullStack,
         -> Result<[u8; 516], MyError<T>> {
         loop {
             let mut buf = [0; 516];
-            let (number_of_bytes, src_addr) = self.udp
-                .receive(&mut self.socket, &mut buf)
-                .unwrap();
-                //.map_err(|_| MyError::UdpErr(ReceiveErr))?;
+            let result = self.udp
+                .receive(&mut self.socket, &mut buf);
+            let (number_of_bytes, src_addr) = match result {
+                Ok(n,) => n,
+                Err(nb::Error::WouldBlock) => continue,
+                Err(_) => panic!("no request"),
+            };
 
             println!("scr_addr {:?}", src_addr);
 
@@ -93,11 +97,13 @@ where T: UdpClientStack + UdpFullStack,
         //necessary to add break after several error messages
         loop {
             let mut buf = [0; 516];
-            let (number_of_bytes, _src_addr) =
-                self.udp
-                .receive(&mut self.socket, &mut buf)
-                .unwrap();
-                //.map_err(|_| MyError::UdpErr(ReceiveErr))?;
+            let result = self.udp
+                .receive(&mut self.socket, &mut buf);
+            let (number_of_bytes, _src_addr) = match result {
+                Ok(n) => n,
+                Err(nb::Error::WouldBlock) => continue,
+                Err(_) => panic!("no request"),
+            };
             let filled_buf = &mut buf[..number_of_bytes];
             let message = Message::try_from(&filled_buf[..])?;
 
@@ -149,11 +155,13 @@ where T: UdpClientStack + UdpFullStack,
                     //.map_err(|_| MyError::UdpErr(SendErr))?;
 
                 let mut r_buf = [0; 516];
-                let (number_of_bytes, _src_addr) =
-                    self.udp
-                    .receive(&mut self.socket, &mut r_buf)
-                    .unwrap();
-                    //.map_err(|_| MyError::UdpErr(ReceiveErr))?;
+                let result = self.udp
+                    .receive(&mut self.socket, &mut r_buf);
+                let (number_of_bytes, _src_addr) = match result {
+                    Ok(n,) => n,
+                    Err(nb::Error::WouldBlock) => continue,
+                    Err(_) => panic!("no request"),
+                };
 
                 let filled_buf = &mut r_buf[..number_of_bytes];
                 let message = Message::try_from(&filled_buf[..])?;

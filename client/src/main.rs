@@ -49,11 +49,13 @@ mod embedded_tftp {
 
             loop {
                 let mut r_buf = [0; 516];
-                let (number_of_bytes, src_addr) = self.udp
-                    .receive(&mut self.socket, &mut r_buf)
-                    .unwrap();
-                    //.map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
-                    //.map_err(|_| MyError::UdpErr(ReceiveErr))?;
+                let result = self.udp
+                    .receive(&mut self.socket, &mut r_buf);
+                let (number_of_bytes, src_addr) = match result {
+                    Ok(n,) => n,
+                    Err(nb::Error::WouldBlock) => continue,
+                    Err(_) => panic!("no request"),
+                };
                 println!("receive message");
 
                 let filled_buf = &mut r_buf[..number_of_bytes];
@@ -89,10 +91,13 @@ mod embedded_tftp {
                 //necessary to add break after several error messages
                 loop {
                     let mut r_buf = [0; 516];
-                    let (number_of_bytes, _src_addr) =
-                        self.udp.receive(&mut self.socket, &mut r_buf)
-                        //.map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
-                        .map_err(|_| MyError::UdpErr(ReceiveErr))?;
+                    let result = self.udp
+                        .receive(&mut self.socket, &mut r_buf);
+                    let (number_of_bytes, _src_addr) = match result {
+                        Ok(n,) => n,
+                        Err(nb::Error::WouldBlock) => continue,
+                        Err(_) => panic!("no request"),
+                    };
 
                     let filled_buf = &mut r_buf[..number_of_bytes];
                     let message = Message::try_from(&filled_buf[..])?;
@@ -148,10 +153,13 @@ mod embedded_tftp {
 
                 loop {
                     let mut r_buf = [0; 516];
-                    let (number_of_bytes, src_addr) = self.udp
-                        .receive(&mut self.socket, &mut r_buf)
-                        .map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
-                        //.map_err(|_| MyError::UdpErr(ReceiveErr))?;
+                    let result = self.udp
+                        .receive(&mut self.socket, &mut r_buf);
+                    let (number_of_bytes, src_addr) = match result {
+                        Ok(n,) => n,
+                        Err(nb::Error::WouldBlock) => continue,
+                        Err(_) => panic!("no request"),
+                    };
 
                     let filled_buf = &mut r_buf[..number_of_bytes];
                     let message = Message::try_from(&filled_buf[..])?;
@@ -188,10 +196,14 @@ mod embedded_tftp {
                         //.map_err(|_| MyError::UdpErr(SendErr))?;
 
                     let mut r_buf = [0; 516];
-                    let (number_of_bytes, _) = self.udp
-                        .receive(&mut self.socket, &mut r_buf)
-                        .map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
-                        //.map_err(|_| MyError::UdpErr(ReceiveErr))?;
+                    let result = self.udp
+                        .receive(&mut self.socket, &mut r_buf);
+                    let (number_of_bytes, _src_addr) = match result {
+                        Ok(n,) => n,
+                        Err(nb::Error::WouldBlock) => continue,
+                        Err(_) => panic!("no request"),
+                    };
+
                     let filled_buf = &mut r_buf[..number_of_bytes];
 
                     let message =
@@ -225,7 +237,7 @@ mod embedded_tftp {
 
 // following is a user who uses your library
 use embedded_nal::{SocketAddrV6, Ipv6Addr};
-    //SocketAddrV4, IpAddr, Ipv4Addr, SocketAddr, };
+    //SocketAddrV4, IpAddr, Ipv4Addr, SocketAddr};
 use embedded_tftp::TftpClient;
 use std_embedded_nal::{Stack};
 
@@ -256,9 +268,9 @@ fn main() {
     println!("{:?}", data);
 
     //send file
-    let msg = "Hello, world!".as_bytes();
+    /*let msg = "Hello, world!".as_bytes();
     match client.send_file("file.txt", msg) {
         Ok(_) => (),
         Err(_) => println!("can't send file"),
-    };
+    };*/
 }
