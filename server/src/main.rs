@@ -1,8 +1,8 @@
 use std::{
     fs::File,
     io::{Read, Write},
-    str::from_utf8,
-    //thread,
+    //str::from_utf8,
+    thread,
     //time::{self, Duration},
 };
 
@@ -12,8 +12,8 @@ use nb;
 use message::{ack, data, error, MyError};
 use message::UdpErr::*;
 use tftp::{FileOperation, Message, Error};
-use embedded_nal::{UdpClientStack, UdpFullStack};
-    //SocketAddr,  IpAddr, Ipv4Addr, Ipv6Addr};
+use embedded_nal::{UdpClientStack, UdpFullStack, SocketAddr};
+    //IpAddr, Ipv4Addr, Ipv6Addr};
 use std_embedded_nal::Stack;
 
 pub struct TftpServer<T>
@@ -36,8 +36,18 @@ where T: UdpClientStack + UdpFullStack,
         }
     }
 
+    pub fn new_connected(mut udp: T, remote: SocketAddr) -> Self {
+        let mut socket = udp.socket().unwrap();
+        udp.connect(&mut socket, remote).unwrap();
+
+        Self {
+            udp: udp,
+            socket: socket,
+        }
+    }
+
     fn listen(&mut self)
-        -> Result<[u8; 516], MyError<T>> {
+        -> Result<(SocketAddr, [u8; 516]), MyError<T>> {
         loop {
             let mut buf = [0; 516];
             let result = self.udp
@@ -55,43 +65,40 @@ where T: UdpClientStack + UdpFullStack,
             match message {
                 Message::File { operation: _, path, mode: _ } => {
                     println!("receive request");
-                    self.udp
-                        .connect(&mut self.socket, src_addr)
-                        //.connect(SocketAddr::new(IpAddr::V6(Ipv6Addr::LOCALHOST), 8081))
-                        .unwrap();
-                        //.map_err(|_| MyError::UdpErr(ConnectErr))?;
-                    println!("connect socket");
-
                     if !PathBuf::from(path.as_str()).exists() {
                         println!("no path");
                         let packet: Vec<u8> = error(0,
                             AsciiStr::from_ascii(b"invalid access, please check filename").unwrap())
                             .into();
                         self.udp
-                            .send(&mut self.socket, packet.as_slice())
+                            .send_to(&mut self.socket, src_addr, packet.as_slice())
                             .map_err(|_| MyError::UdpErr(SendErr))?;
                             println!("send error message");
                         return Err(MyError::TftpErr(Error::NoPath));
                     }
 
-                    let packet: Vec<u8> = ack(0).into();
-                    self.udp
-                        .send(&mut self.socket, packet.as_slice())
-                        .unwrap();
-                        //.map_err(|_| MyError::UdpErr(SendErr))?;
-                    println!("send ack");
-
                     let mut out_buf = [0; 516];
                     out_buf.clone_from_slice(&buf);
-                    return Ok(out_buf);
+                    return Ok((src_addr,out_buf));
                 }
                 _ => continue,
             }
         }
     }
 
-    fn write(&mut self) -> Result<Vec<u8>, MyError<T>> {
+    fn write(&mut self, remote: SocketAddr) -> Result<Vec<u8>, MyError<T>> {
+        self.udp
+            .connect(&mut self.socket, remote)
+            .unwrap();
+            //.map_err(|_| MyError::UdpErr(ConnectErr))?;
+        println!("connect socket");
         let mut vec = Vec::with_capacity(1024 * 1024);
+        let packet: Vec<u8> = ack(0).into();
+        self.udp
+            .send(&mut self.socket, packet.as_slice())
+            .unwrap();
+            //.map_err(|_| MyError::UdpErr(SendErr))?;
+        println!("send ack");
 
         //necessary to add break after several error messages
         loop {
@@ -130,7 +137,13 @@ where T: UdpClientStack + UdpFullStack,
         Ok(vec)
     }
 
-    fn read(&mut self, vec: &mut Vec<u8>) -> Result<(), MyError<T>> {
+    fn read(&mut self, remote: SocketAddr, vec: &mut Vec<u8>) -> Result<(), MyError<T>> {
+        self.udp
+            .connect(&mut self.socket, remote)
+            .unwrap();
+            //.map_err(|_| MyError::UdpErr(ConnectErr))?;
+        println!("connect socket");
+
         let mut i = 0;
         let mut j = 512;
         let mut vec_slice: &[u8];
@@ -198,20 +211,20 @@ fn main() {
     let mut server = TftpServer::new(
         std_stack,
     );
-
     println!("create server");
-    let result = match server.listen() {
-        Ok(message)  => message,
+
+    let (src_addr, mess) = match server.listen() {
+        Ok(result)  => result,
         Err(_) => panic!("no request"),
     };
-    let message: tftp::Message = result[..].try_into().unwrap();
+    let message: tftp::Message = mess[..].try_into().unwrap();
     match message {
         Message::File {
             operation: FileOperation::Write,
             ..
-        } => match server.write() {
+        } => match server.write(src_addr) {
             Ok(vec)  => {
-                let mut f = File::create("write_into.txt").unwrap();
+                let mut f = File::create("file1.txt").unwrap();
                 f.write(vec.as_slice()).unwrap();
             },
             Err(_) => println!("server writing error"),
@@ -225,7 +238,7 @@ fn main() {
             let mut vec: Vec<u8> = vec![];
             let mut f = File::open(path.as_str()).unwrap();
             f.read_to_end(&mut vec).unwrap();
-            match server.read(&mut vec) {
+            match server.read(src_addr, &mut vec) {
                 Ok(_)  => (),
                 Err(_) => println!("server reading error"),
             }
