@@ -7,7 +7,7 @@
 };*/
 
 use std::path::PathBuf;
-use ascii::AsciiStr;
+use ascii::{AsciiStr, AsciiString};
 use nb;
 use message::{ack, data, error, MyError};
 use message::UdpErr::*;
@@ -23,6 +23,12 @@ where T: UdpClientStack + UdpFullStack,
     pub socket: T::UdpSocket,
 }
 
+pub enum RequestType {
+    Read,
+    Write,
+}
+
+
 impl<T> TftpServer<T>
 where T: UdpClientStack + UdpFullStack,
 {
@@ -36,9 +42,9 @@ where T: UdpClientStack + UdpFullStack,
         }
     }
 
-    pub fn new_connected(mut udp: T, remote: SocketAddr) -> Self {
+    pub fn new_connected(mut udp: T, remote: &SocketAddr) -> Self {
         let mut socket = udp.socket().unwrap();
-        udp.connect(&mut socket, remote).unwrap();
+        udp.connect(&mut socket, *remote).unwrap();
 
         Self {
             udp: udp,
@@ -47,7 +53,8 @@ where T: UdpClientStack + UdpFullStack,
     }
 
     pub fn listen(&mut self)
-        -> Result<(SocketAddr, [u8; 516]), MyError<T>> {
+        //-> Result<(SocketAddr, [u8; 516]), MyError<T>> {
+            -> Result<(RequestType, SocketAddr, AsciiString), MyError<T>> {
         loop {
             let mut buf = [0; 516];
             let result = self.udp
@@ -59,11 +66,12 @@ where T: UdpClientStack + UdpFullStack,
             };
 
             println!("scr_addr {:?}", src_addr);
+            let mut filename = AsciiString::new();
 
             let filled_buf = &mut buf[..number_of_bytes];
             let message = Message::try_from(&filled_buf[..])?;
             match message {
-                Message::File { operation: _, path, mode: _ } => {
+                Message::File { operation, path, mode: _ } => {
                     println!("receive request");
                     if !PathBuf::from(path.as_str()).exists() {
                         println!("no path");
@@ -75,11 +83,17 @@ where T: UdpClientStack + UdpFullStack,
                             .map_err(|_| MyError::UdpErr(SendErr))?;
                             println!("send error message");
                         return Err(MyError::TftpErr(Error::NoPath));
+                    } else {
+                        filename = path.to_ascii_string();
                     }
+                    match operation {
+                        FileOperation::Read => return Ok((RequestType::Read, src_addr, filename)),
+                        FileOperation::Write => return Ok((RequestType::Write, src_addr, filename)),
+                    };
 
-                    let mut out_buf = [0; 516];
-                    out_buf.clone_from_slice(&buf);
-                    return Ok((src_addr,out_buf));
+                    //let mut out_buf = [0; 516];
+                    //out_buf.clone_from_slice(&buf);
+                    //return Ok((src_addr, filename));
                 }
                 _ => continue,
             }
