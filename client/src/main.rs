@@ -36,12 +36,6 @@ fn main() {
     f.write(data.as_slice()).unwrap();
     println!("{:?}", from_utf8(data.as_slice()).unwrap());
 
-    //send file
-    /*let mut remote_addr = embedded_nal::SocketAddr::V6(
-        SocketAddrV6::new(
-            Ipv6Addr::localhost(),
-            69, 0, 0));*/
-
     let mut msg: Vec<u8> = vec![];
     let mut f = File::open("read_from.txt").unwrap();
     f.read_to_end(&mut msg).unwrap();

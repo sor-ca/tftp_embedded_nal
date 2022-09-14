@@ -8,14 +8,11 @@ use std::{
 use std_embedded_nal::Stack;
 use server::{TftpServer, RequestType};
 
-
-
-
 fn main() {
 
     let std_stack = Stack::default();
 
-    // create tftp client
+    // create tftp server
     let mut server = TftpServer::new(
         std_stack,
     );
