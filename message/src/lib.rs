@@ -1,8 +1,74 @@
+/*
+Error Codes
+
+   Value     Meaning
+
+   0         Not defined, see error message (if any).
+   1         File not found.
+   2         Access violation.
+   3         Disk full or allocation exceeded.
+   4         Illegal TFTP operation.
+   5         Unknown transfer ID.
+   6         File already exists.
+   7         No such user.
+ */
+
 use ascii::AsciiStr;
-use tftp::{BufAtMost512, FileOperation, Message, Mode};
 use std::io;
 use embedded_nal::UdpClientStack;
 use embedded_nal::nb;
+use tftp::{BufAtMost512, FileOperation, Message, Mode, Operation};
+use heapless::Vec;
+
+impl <'b, const N: usize> From <Message<'b>> for Vec<u8, N> {
+    fn from(message: Message<'b>) -> Self {
+        match message {
+            Message::File {
+                operation,
+                path,
+                mode,
+            } => {
+                let mode: &'static AsciiStr = mode.into();
+                let mut buf: Vec<u8, 516> = Vec::new();
+
+                buf.extend_from_slice(&i16::to_be_bytes(Operation::from(operation) as i16));
+                buf.extend_from_slice(path.as_bytes());
+                buf.push(0);
+                buf.extend_from_slice(mode.as_bytes());
+                buf.push(0);
+
+                buf
+            }
+            Message::Data(block_id, data) => {
+                let mut buf: Vec<u8, 516> = Vec::new();
+
+                buf.extend_from_slice(&i16::to_be_bytes(Operation::Data as i16));
+                buf.extend_from_slice(&u16::to_be_bytes(block_id));
+                buf.extend_from_slice(data.as_ref());
+
+                buf
+            }
+            Message::Ack(block_id) => {
+                let mut buf: Vec<u8, 516> = Vec::new();
+
+                buf.extend_from_slice(&i16::to_be_bytes(Operation::Ack as i16));
+                buf.extend_from_slice(&u16::to_be_bytes(block_id));
+
+                buf
+            }
+            Message::Error(block_id, error) => {
+                let mut buf: Vec<u8, 516> = Vec::new();
+
+                buf.extend_from_slice(&i16::to_be_bytes(Operation::Error as i16));
+                buf.extend_from_slice(&u16::to_be_bytes(block_id));
+                buf.extend_from_slice(error.as_bytes());
+                buf.push(0);
+
+                buf
+            }
+        }
+    }
+}
 
 pub fn wrq<'b>(path: &'b AsciiStr, octet_mode: bool) -> Message<'b> {
     Message::File {
@@ -83,14 +149,14 @@ where
     }
 }
 
-/* impl<T> From<UdpErr> for MyError<T>
+impl<T> From<UdpErr> for MyError<T>
 where
         T: UdpClientStack,
 {
     fn from(e: UdpErr) -> Self {
         MyError::UdpErr(e)
     }
-}*/
+}
 
 /* impl<T> From<T::Error> for MyError<T>
 where
