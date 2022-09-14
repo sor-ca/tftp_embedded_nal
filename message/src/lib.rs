@@ -20,55 +20,56 @@ use embedded_nal::nb;
 use tftp::{BufAtMost512, FileOperation, Message, Mode, Operation};
 use heapless::Vec;
 
-impl <'b, const N: usize> From <Message<'b>> for Vec<u8, N> {
-    fn from(message: Message<'b>) -> Self {
-        match message {
-            Message::File {
-                operation,
-                path,
-                mode,
-            } => {
-                let mode: &'static AsciiStr = mode.into();
-                let mut buf: Vec<u8, 516> = Vec::new();
+//impl <'b, const N: usize> From <Message<'b>> for Vec<u8, N> {
+    //fn from(message: Message<'b>) -> Self {
+pub fn to_heapless<'b> (message: Message<'b>) -> Vec<u8, 516> {
+    match message {
+        Message::File {
+            operation,
+            path,
+            mode,
+        } => {
+            let mode: &'static AsciiStr = mode.into();
+            let mut buf: Vec<u8, 516> = Vec::new();
 
-                buf.extend_from_slice(&i16::to_be_bytes(Operation::from(operation) as i16));
-                buf.extend_from_slice(path.as_bytes());
-                buf.push(0);
-                buf.extend_from_slice(mode.as_bytes());
-                buf.push(0);
+            buf.extend_from_slice(&i16::to_be_bytes(Operation::from(operation) as i16)).unwrap();
+            buf.extend_from_slice(path.as_bytes()).unwrap();
+            buf.push(0).unwrap();
+            buf.extend_from_slice(mode.as_bytes()).unwrap();
+            buf.push(0).unwrap();
 
-                buf
-            }
-            Message::Data(block_id, data) => {
-                let mut buf: Vec<u8, 516> = Vec::new();
+            buf
+        }
+        Message::Data(block_id, data) => {
+            let mut buf: Vec<u8, 516> = Vec::new();
 
-                buf.extend_from_slice(&i16::to_be_bytes(Operation::Data as i16));
-                buf.extend_from_slice(&u16::to_be_bytes(block_id));
-                buf.extend_from_slice(data.as_ref());
+            buf.extend_from_slice(&i16::to_be_bytes(Operation::Data as i16)).unwrap();
+            buf.extend_from_slice(&u16::to_be_bytes(block_id)).unwrap();
+            buf.extend_from_slice(data.as_ref()).unwrap();
 
-                buf
-            }
-            Message::Ack(block_id) => {
-                let mut buf: Vec<u8, 516> = Vec::new();
+            buf
+        }
+        Message::Ack(block_id) => {
+            let mut buf: Vec<u8, 516> = Vec::new();
 
-                buf.extend_from_slice(&i16::to_be_bytes(Operation::Ack as i16));
-                buf.extend_from_slice(&u16::to_be_bytes(block_id));
+            buf.extend_from_slice(&i16::to_be_bytes(Operation::Ack as i16)).unwrap();
+            buf.extend_from_slice(&u16::to_be_bytes(block_id)).unwrap();
 
-                buf
-            }
-            Message::Error(block_id, error) => {
-                let mut buf: Vec<u8, 516> = Vec::new();
+            buf
+        }
+        Message::Error(block_id, error) => {
+            let mut buf: Vec<u8, 516> = Vec::new();
 
-                buf.extend_from_slice(&i16::to_be_bytes(Operation::Error as i16));
-                buf.extend_from_slice(&u16::to_be_bytes(block_id));
-                buf.extend_from_slice(error.as_bytes());
-                buf.push(0);
+            buf.extend_from_slice(&i16::to_be_bytes(Operation::Error as i16)).unwrap();
+            buf.extend_from_slice(&u16::to_be_bytes(block_id)).unwrap();
+            buf.extend_from_slice(error.as_bytes()).unwrap();
+            buf.push(0).unwrap();
 
-                buf
-            }
+            buf
         }
     }
 }
+
 
 pub fn wrq<'b>(path: &'b AsciiStr, octet_mode: bool) -> Message<'b> {
     Message::File {
