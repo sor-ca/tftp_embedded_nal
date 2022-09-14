@@ -46,6 +46,7 @@
             let mut block_id = 1u16;
             let mut vec = Vec::with_capacity(1024 * 1024);
             let mut file_end = false;
+            let new_addr: SocketAddr;
 
             loop {
                 let mut r_buf = [0; 516];
@@ -67,11 +68,11 @@
                             continue;
                         }
                         println!("receive data message");
-                        *remote_addr = src_addr;
+                        new_addr = src_addr;
                         vec.extend_from_slice(data.as_ref());
 
                         let packet: Vec<u8> = ack(id).into();
-                        self.udp.send_to(&mut self.socket, *remote_addr, packet.as_slice())
+                        self.udp.send_to(&mut self.socket, new_addr, packet.as_slice())
                             //.map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
                             .map_err(|_| MyError::UdpErr(SendErr))?;
 
@@ -114,7 +115,7 @@
 
                             let packet: Vec<u8> = ack(block_id).into();
                             self.udp
-                                .send_to(&mut self.socket, *remote_addr, packet.as_slice())
+                                .send_to(&mut self.socket, new_addr, packet.as_slice())
                                 //.map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
                                 .map_err(|_| MyError::UdpErr(SendErr))?;
 

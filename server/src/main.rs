@@ -5,7 +5,6 @@ use std::{
     //time::{self, Duration},
 };
 
-use tftp::{FileOperation, Message};
 use std_embedded_nal::Stack;
 use server::{TftpServer, RequestType};
 

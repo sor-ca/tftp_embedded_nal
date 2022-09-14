@@ -1,10 +1,3 @@
-/*use std::{
-    fs::File,
-    io::{Read, Write},
-    //str::from_utf8,
-    thread,
-    //time::{self, Duration},
-};*/
 
 use std::path::PathBuf;
 use ascii::{AsciiStr, AsciiString};
@@ -13,8 +6,6 @@ use message::{ack, data, error, MyError};
 use message::UdpErr::*;
 use tftp::{FileOperation, Message, Error};
 use embedded_nal::{UdpClientStack, UdpFullStack, SocketAddr};
-    //IpAddr, Ipv4Addr, Ipv6Addr};
-//use std_embedded_nal::Stack;
 
 pub struct TftpServer<T>
 where T: UdpClientStack + UdpFullStack,
@@ -52,9 +43,7 @@ where T: UdpClientStack + UdpFullStack,
         }
     }
 
-    pub fn listen(&mut self)
-        //-> Result<(SocketAddr, [u8; 516]), MyError<T>> {
-            -> Result<(RequestType, SocketAddr, AsciiString), MyError<T>> {
+    pub fn listen(&mut self) -> Result<(RequestType, SocketAddr, AsciiString), MyError<T>> {
         loop {
             let mut buf = [0; 516];
             let result = self.udp
