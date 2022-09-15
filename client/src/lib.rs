@@ -8,6 +8,7 @@
     use tftp::{Message};
     use message::MyError;
     use nb;
+    use std::{thread, time::Duration};
 
     pub struct TftpClient<T>
     where
@@ -33,6 +34,7 @@
 
         pub fn read_file(&mut self, path: &str, remote_addr: &mut SocketAddr) -> Result<Vec<u8>, MyError<T>>
         {
+            thread::sleep(Duration::from_secs(10));
             let packet: Vec<u8> = rrq(AsciiStr::from_ascii(path.as_bytes()).unwrap(), true)
             .into();
             println!("create packet");
@@ -146,6 +148,7 @@
 
         pub fn send_file(&mut self, remote_addr: &mut SocketAddr, path: &str, data_vec: &[u8]) -> Result<(), MyError<T>>
         {
+            thread::sleep(Duration::from_secs(10));
             let mut packet: Vec<u8> = wrq(AsciiStr::from_ascii(path.as_bytes()).unwrap(), true).into();
             self.udp
                 .send_to(&mut self.socket, *remote_addr, packet.as_slice())
@@ -158,6 +161,7 @@
                 let mut block_id = 0u16;
 
                 loop {
+                    thread::sleep(Duration::from_secs(10));
                     vec_slice = if data_vec.len() > j { &data_vec[i..j] } else { &data_vec[i..] };
 
                     loop {
