@@ -45,7 +45,6 @@ where T: UdpClientStack + UdpFullStack,
     }
 
     pub fn listen(&mut self)
-        //-> Result<(SocketAddr, [u8; 516]), MyError<T>> {
             -> Result<(RequestType, SocketAddr, AsciiString), MyError<T>> {
         loop {
             let mut buf = [0; 516];
@@ -90,13 +89,13 @@ where T: UdpClientStack + UdpFullStack,
         }
     }
 
-    pub fn write(&mut self, remote: SocketAddr) -> Result<Vec<u8, {1024 * 1024}>, MyError<T>> {
+    pub fn write(&mut self, remote: SocketAddr) -> Result<Vec<u8, {10 * 1024}>, MyError<T>> {
         self.udp
             .connect(&mut self.socket, remote)
             .unwrap();
             //.map_err(|_| MyError::UdpErr(ConnectErr))?;
         println!("connect socket");
-        let mut vec: Vec<u8, {1024 * 1024}> = Vec::new();
+        let mut vec: Vec<u8, {10 * 1024}> = Vec::new();
         //let packet: Vec<u8> = ack(0).into();
         let packet: Vec<u8, 516> = to_heapless(ack(0));
         self.udp
@@ -143,7 +142,7 @@ where T: UdpClientStack + UdpFullStack,
         Ok(vec)
     }
 
-    pub fn read(&mut self, remote: SocketAddr, vec: &mut Vec<u8, {1024 * 1024}>) -> Result<(), MyError<T>> {
+    pub fn read(&mut self, remote: SocketAddr, vec: &mut Vec<u8, {10 * 1024}>) -> Result<(), MyError<T>> {
         self.udp
             .connect(&mut self.socket, remote)
             .unwrap();

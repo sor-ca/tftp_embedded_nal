@@ -30,7 +30,7 @@ fn main() {
             let mut vec: std::vec::Vec<u8> = vec![];
             let mut f = File::open(filename.as_str()).unwrap();
             f.read_to_end(&mut vec).unwrap();
-            let mut h_vec: Vec<u8, {1024 * 1024}> = heapless::Vec::from_slice(&vec[..]).unwrap();
+            let mut h_vec: Vec<u8, {10 * 1024}> = heapless::Vec::from_slice(&vec[..]).unwrap();
 
             match server.read(src_addr, &mut h_vec) {
                 Ok(_)  => (),
