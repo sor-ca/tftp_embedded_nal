@@ -5,9 +5,10 @@ use std::{
 use std_embedded_nal::Stack;
 use server::{TftpServer, RequestType};
 
+use heapless::Vec;
+
 fn main() {
     let std_stack = Stack::default();
-    // create tftp client
     let mut server = TftpServer::new(
         std_stack,
     );
@@ -26,14 +27,15 @@ fn main() {
             Err(_) => println!("server writing error"),
         },
         RequestType::Read => {
-            let mut vec: Vec<u8> = vec![];
+            let mut vec: std::vec::Vec<u8> = vec![];
             let mut f = File::open(filename.as_str()).unwrap();
             f.read_to_end(&mut vec).unwrap();
-            match server.read(src_addr, &mut vec) {
+            let mut h_vec: Vec<u8, {10 * 1024}> = heapless::Vec::from_slice(&vec[..]).unwrap();
+
+            match server.read(src_addr, &mut h_vec) {
                 Ok(_)  => (),
                 Err(_) => println!("server reading error"),
             }
         },
-
     }
 }

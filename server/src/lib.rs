@@ -1,20 +1,12 @@
-/*use std::{
-    fs::File,
-    io::{Read, Write},
-    //str::from_utf8,
-    thread,
-    //time::{self, Duration},
-};*/
 
 use std::path::PathBuf;
 use ascii::{AsciiStr, AsciiString};
 use nb;
-use message::{ack, data, error, MyError};
+use message::{ack, data, error, to_heapless, MyError};
 use message::UdpErr::*;
 use tftp::{FileOperation, Message, Error};
 use embedded_nal::{UdpClientStack, UdpFullStack, SocketAddr};
-    //IpAddr, Ipv4Addr, Ipv6Addr};
-//use std_embedded_nal::Stack;
+use heapless::Vec;
 
 pub struct TftpServer<T>
 where T: UdpClientStack + UdpFullStack,
@@ -53,7 +45,6 @@ where T: UdpClientStack + UdpFullStack,
     }
 
     pub fn listen(&mut self)
-        //-> Result<(SocketAddr, [u8; 516]), MyError<T>> {
             -> Result<(RequestType, SocketAddr, AsciiString), MyError<T>> {
         loop {
             let mut buf = [0; 516];
@@ -75,9 +66,11 @@ where T: UdpClientStack + UdpFullStack,
                     println!("receive request");
                     if !PathBuf::from(path.as_str()).exists() {
                         println!("no path");
-                        let packet: Vec<u8> = error(0,
+                        let packet: Vec<u8, 516> = to_heapless(
+                            error(0,
                             AsciiStr::from_ascii(b"invalid access, please check filename").unwrap())
-                            .into();
+                        );
+                            //.into();
                         self.udp
                             .send_to(&mut self.socket, src_addr, packet.as_slice())
                             .map_err(|_| MyError::UdpErr(SendErr))?;
@@ -90,24 +83,21 @@ where T: UdpClientStack + UdpFullStack,
                         FileOperation::Read => return Ok((RequestType::Read, src_addr, filename)),
                         FileOperation::Write => return Ok((RequestType::Write, src_addr, filename)),
                     };
-
-                    //let mut out_buf = [0; 516];
-                    //out_buf.clone_from_slice(&buf);
-                    //return Ok((src_addr, filename));
                 }
                 _ => continue,
             }
         }
     }
 
-    pub fn write(&mut self, remote: SocketAddr) -> Result<Vec<u8>, MyError<T>> {
+    pub fn write(&mut self, remote: SocketAddr) -> Result<Vec<u8, {10 * 1024}>, MyError<T>> {
         self.udp
             .connect(&mut self.socket, remote)
             .unwrap();
             //.map_err(|_| MyError::UdpErr(ConnectErr))?;
         println!("connect socket");
-        let mut vec = Vec::with_capacity(1024 * 1024);
-        let packet: Vec<u8> = ack(0).into();
+        let mut vec: Vec<u8, {10 * 1024}> = Vec::new();
+        //let packet: Vec<u8> = ack(0).into();
+        let packet: Vec<u8, 516> = to_heapless(ack(0));
         self.udp
             .send(&mut self.socket, packet.as_slice())
             .unwrap();
@@ -130,9 +120,10 @@ where T: UdpClientStack + UdpFullStack,
             match message {
                 Message::Data(block_id, data) => {
                     println!("receive data packet");
-                    vec.extend_from_slice(data.as_ref());
+                    vec.extend_from_slice(data.as_ref()).unwrap();
 
-                    let packet: Vec<u8> = ack(block_id).into();
+                    //let packet: Vec<u8> = ack(block_id).into();
+                    let packet: Vec<u8, 516> = to_heapless(ack(block_id));
                     //thread::sleep(time::Duration::from_secs(1));
                     self.udp
                         .send(&mut self.socket, packet.as_slice())
@@ -151,7 +142,7 @@ where T: UdpClientStack + UdpFullStack,
         Ok(vec)
     }
 
-    pub fn read(&mut self, remote: SocketAddr, vec: &mut Vec<u8>) -> Result<(), MyError<T>> {
+    pub fn read(&mut self, remote: SocketAddr, vec: &mut Vec<u8, {10 * 1024}>) -> Result<(), MyError<T>> {
         self.udp
             .connect(&mut self.socket, remote)
             .unwrap();
@@ -165,8 +156,9 @@ where T: UdpClientStack + UdpFullStack,
 
         loop {
             vec_slice = if vec.len() > j { &vec[i..j] } else { &vec[i..] };
-            let packet: Vec<u8> = match data::<T>(block_id, vec_slice) {
-                Ok(buf) => buf.into(),
+            let packet: Vec<u8, 516> = match data::<T>(block_id, vec_slice) {
+                //Ok(buf) => buf.into(),
+                Ok(buf) => to_heapless(buf),
                 Err(_) => panic!(),
             };
 
