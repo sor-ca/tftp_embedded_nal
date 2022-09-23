@@ -1,10 +1,12 @@
 
-use std::path::PathBuf;
+//use std::path::PathBuf;
 use ascii::{AsciiStr, AsciiString};
 use nb;
-use message::{ack, data, error, to_heapless, MyError};
+//use message::{ack, data, error, to_heapless, MyError};
+use message::{ack, data, to_heapless, MyError};
 use message::UdpErr::*;
-use tftp::{FileOperation, Message, Error};
+//use tftp::{FileOperation, Message, Error};
+use tftp::{FileOperation, Message};
 use embedded_nal::{UdpClientStack, UdpFullStack, SocketAddr};
 use heapless::Vec;
 
@@ -64,7 +66,7 @@ where T: UdpClientStack + UdpFullStack,
             match message {
                 Message::File { operation, path, mode: _ } => {
                     println!("receive request");
-                    if !PathBuf::from(path.as_str()).exists() {
+                    /*if !PathBuf::from(path.as_str()).exists() {
                         println!("no path");
                         let packet: Vec<u8, 516> = to_heapless(
                             error(0,
@@ -76,9 +78,9 @@ where T: UdpClientStack + UdpFullStack,
                             .map_err(|_| MyError::UdpErr(SendErr))?;
                             println!("send error message");
                         return Err(MyError::TftpErr(Error::NoPath));
-                    } else {
+                    } else {*/
                         filename = path.to_ascii_string();
-                    }
+                    //}
                     match operation {
                         FileOperation::Read => return Ok((RequestType::Read, src_addr, filename)),
                         FileOperation::Write => return Ok((RequestType::Write, src_addr, filename)),

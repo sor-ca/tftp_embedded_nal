@@ -1,11 +1,11 @@
 /// that modules represents your library
 //mod embedded_tftp {
     use embedded_nal::{SocketAddr, UdpClientStack, UdpFullStack};
-        //SocketAddrV6, Ipv6Addr};
     use ascii::AsciiStr;
-    use message::{ack, data, rrq, wrq};
+    use message::{ack, data, rrq, wrq, to_heapless};
     use message::UdpErr::*;
     use tftp::{Message};
+    use heapless::Vec;
     use message::MyError;
     use nb;
 
@@ -31,10 +31,11 @@
             }
         }
 
-        pub fn read_file(&mut self, path: &str, remote_addr: &mut SocketAddr) -> Result<Vec<u8>, MyError<T>>
+        pub fn read_file(&mut self, path: &str, remote_addr: &mut SocketAddr) -> Result<Vec<u8, {10 * 1024}>, MyError<T>>
         {
-            let packet: Vec<u8> = rrq(AsciiStr::from_ascii(path.as_bytes()).unwrap(), true)
-            .into();
+            let packet: Vec<u8, 516> = to_heapless(
+                rrq(AsciiStr::from_ascii(path.as_bytes()).unwrap(), true));
+            //.into();
             println!("create packet");
             self.udp
                 .send_to(&mut self.socket, *remote_addr, packet.as_slice())
@@ -44,7 +45,8 @@
             println!("send request");
 
             let mut block_id = 1u16;
-            let mut vec = Vec::with_capacity(1024 * 1024);
+            //let mut vec = Vec::with_capacity(1024 * 1024);
+            let mut vec: Vec<u8, {10 * 1024}> = Vec::new();
             let mut file_end = false;
 
             loop {
@@ -68,9 +70,11 @@
                         }
                         println!("receive data message");
                         *remote_addr = src_addr;
-                        vec.extend_from_slice(data.as_ref());
+                        vec.extend_from_slice(data.as_ref()).unwrap();
 
-                        let packet: Vec<u8> = ack(id).into();
+                        let packet: Vec<u8, 516> = to_heapless(
+                            ack(id));
+                            //.into();
                         self.udp.send_to(&mut self.socket, *remote_addr, packet.as_slice())
                             //.map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
                             .map_err(|_| MyError::UdpErr(SendErr))?;
@@ -110,9 +114,10 @@
                                 println!("wrong block id");
                                 continue;
                             }
-                            vec.extend_from_slice(data.as_ref());
+                            vec.extend_from_slice(data.as_ref()).unwrap();
 
-                            let packet: Vec<u8> = ack(block_id).into();
+                            let packet: Vec<u8, 516> = to_heapless(ack(block_id));
+                            //.into();
                             self.udp
                                 .send_to(&mut self.socket, *remote_addr, packet.as_slice())
                                 //.map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
@@ -145,7 +150,9 @@
 
         pub fn send_file(&mut self, remote_addr: &mut SocketAddr, path: &str, data_vec: &[u8]) -> Result<(), MyError<T>>
         {
-            let mut packet: Vec<u8> = wrq(AsciiStr::from_ascii(path.as_bytes()).unwrap(), true).into();
+            let mut packet: Vec<u8, 516> = to_heapless(
+                wrq(AsciiStr::from_ascii(path.as_bytes()).unwrap(), true));
+                //.into();
             self.udp
                 .send_to(&mut self.socket, *remote_addr, packet.as_slice())
                 .map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
@@ -176,7 +183,9 @@
                                     if id == block_id {
                                         println!("receive ack message");
                                         block_id += 1;
-                                        packet = data(block_id, vec_slice)?.into();
+                                        packet = to_heapless(
+                                            data(block_id, vec_slice)?);
+                                        //.into();
                                         self.udp
                                             .send_to(&mut self.socket, src_addr, packet.as_slice())
                                             .map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
