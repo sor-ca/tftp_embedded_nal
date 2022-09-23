@@ -2,11 +2,11 @@
 //mod embedded_tftp {
     use embedded_nal::{SocketAddr, UdpClientStack, UdpFullStack};
     use ascii::AsciiStr;
-    use message::{ack, data, rrq, wrq, to_heapless};
-    use message::UdpErr::*;
+    use crate::message::{ack, data, rrq, wrq, to_heapless,
+        UdpErr::*,
+        MyError};
     use tftp::{Message};
     use heapless::Vec;
-    use message::MyError;
     use nb;
 
     pub struct TftpClient<T>

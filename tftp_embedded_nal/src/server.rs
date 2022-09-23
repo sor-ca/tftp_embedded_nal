@@ -2,10 +2,9 @@
 //use std::path::PathBuf;
 use ascii::{AsciiStr, AsciiString};
 use nb;
-//use message::{ack, data, error, to_heapless, MyError};
-use message::{ack, data, to_heapless, MyError};
-use message::UdpErr::*;
-//use tftp::{FileOperation, Message, Error};
+use crate::message::{ack, data, to_heapless,
+    UdpErr::*,
+    MyError};
 use tftp::{FileOperation, Message};
 use embedded_nal::{UdpClientStack, UdpFullStack, SocketAddr};
 use heapless::Vec;

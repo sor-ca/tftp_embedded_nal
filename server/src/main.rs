@@ -3,8 +3,7 @@ use std::{
     io::{Read, Write},
 };
 use std_embedded_nal::Stack;
-use server::{TftpServer, RequestType};
-
+use tftp_embedded_nal::server::{TftpServer, RequestType};
 use heapless::Vec;
 
 fn main() {

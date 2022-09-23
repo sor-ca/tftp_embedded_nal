@@ -1,2 +1,2 @@
 [workspace]
-members = ["client", "server", "message"]
+members = ["client", "server", "tftp_embedded_nal"]

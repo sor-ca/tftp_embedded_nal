@@ -1,15 +1,11 @@
-// following is a user who uses your library
 use embedded_nal::{SocketAddrV6, Ipv6Addr};
-    //SocketAddrV4, IpAddr, Ipv4Addr, SocketAddr};
-//uncomment when create embedded-tftp
-//use embedded_tftp::TftpClient;
 use std_embedded_nal::{Stack};
 use std::{
     fs::File,
     io::{Read, Write},
     str::from_utf8,
 };
-use client::TftpClient;
+use tftp_embedded_nal::client::TftpClient;
 
 fn main() {
     // create concrete implementation
