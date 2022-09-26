@@ -12,3 +12,7 @@ embedded-nal = "0.6.0"
 std-embedded-nal = "0.1.3"
 nb = "1"
 heapless = "0.7.16"
+smoltcp-nal = { git = "https://github.com/quartiq/smoltcp-nal" }
+#smoltcp = "0.8.1"
+smoltcp = { git = "https://github.com/smoltcp-rs/smoltcp" }
+embedded-time = "0.12.1"
