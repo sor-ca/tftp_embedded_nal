@@ -6,9 +6,8 @@ use std::{
 use smoltcp_nal::{UdpSocket, NetworkError, NetworkStack};
 use tftp_embedded_nal::server::{TftpServer, RequestType};
 use heapless::Vec;
-use smoltcp::iface::{InterfaceBuilder, NeighborCache};
-use smoltcp::socket::udp::Socket;
-use std::collections::BTreeMap;
+use smoltcp::iface::{InterfaceBuilder, NeighborCache, Interface};
+use smoltcp::socket::udp::{Socket, PacketMetadata, PacketBuffer};
 use smoltcp::phy::{Loopback, Medium};
 use smoltcp::wire::{EthernetAddress, IpCidr, Ipv6Address, IpAddress};
 use embedded_time::{clock::{Clock, Error}, fraction::Fraction, Instant};
@@ -24,11 +23,11 @@ impl Clock for SomeClock {
 }
 
 fn main() {
-    let std_stack = Stack::default();
     //let std_stack = Stack::default();
     let device = Loopback::new(Medium::Ethernet);
     let hw_addr = EthernetAddress::default();
-    let neighbor_cache = NeighborCache::new(BTreeMap::new());
+    let mut neighbor_cache_storage = [None; 8];
+    let mut neighbor_cache = NeighborCache::new(&mut neighbor_cache_storage[..]);
     let ip_addrs = [
         IpCidr::new(IpAddress::Ipv6(Ipv6Address::LOOPBACK), 64),
     ];
@@ -40,15 +39,15 @@ fn main() {
         .ip_addrs(ip_addrs)
         .finalize(&mut device);
 
-    let udp_rx_buffer = udp::PacketBuffer::new(
-        vec![udp::PacketMetadata::EMPTY, udp::PacketMetadata::EMPTY],
+    let udp_rx_buffer = PacketBuffer::new(
+        vec![PacketMetadata::EMPTY, PacketMetadata::EMPTY],
         vec![0; 65535],
     );
-    let udp_tx_buffer = udp::PacketBuffer::new(
-        vec![udp::PacketMetadata::EMPTY, udp::PacketMetadata::EMPTY],
+    let udp_tx_buffer = PacketBuffer::new(
+        vec![PacketMetadata::EMPTY, PacketMetadata::EMPTY],
         vec![0; 65535],
     );
-    let udp_socket = udp::Socket::new(udp_rx_buffer, udp_tx_buffer);
+    let udp_socket = Socket::new(udp_rx_buffer, udp_tx_buffer);
     iface.add_socket(udp_socket);
 
     let clock: SomeClock;

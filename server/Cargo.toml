@@ -14,5 +14,39 @@ nb = "1"
 heapless = "0.7.16"
 smoltcp-nal = { git = "https://github.com/quartiq/smoltcp-nal" }
 #smoltcp = "0.8.1"
-smoltcp = { git = "https://github.com/smoltcp-rs/smoltcp" }
 embedded-time = "0.12.1"
+
+[dependencies.smoltcp]
+git = "https://github.com/smoltcp-rs/smoltcp"
+#version = "0.8.1"
+default-features = false
+
+#features from smoltcp-nal
+#features = ["medium-ethernet", "proto-ipv6", "socket-tcp", "socket-dhcpv4", "socket-udp"]
+
+#my features
+#features = [
+    #"proto-ipv4",
+    #"proto-ipv6",
+    #"socket",
+    #"socket-udp",
+    #"medium-ethernet",
+    #"medium-ip",
+    #"defmt",
+    #"medium-ieee802154",
+    #"proto-igmp",
+    #"proto-ipv4-fragmentation",
+    #"proto-sixlowpan-fragmentation",
+    #"proto-sixlowpan",
+#]
+
+#features from default without std
+features = [
+  "log",
+  "medium-ethernet", "medium-ip", "medium-ieee802154",
+  "phy-raw_socket", "phy-tuntap_interface",
+  "proto-ipv4", "proto-igmp", "proto-dhcpv4", "proto-ipv6", "proto-dns",
+  "proto-ipv4-fragmentation", "proto-sixlowpan-fragmentation",
+  "socket-raw", "socket-icmp", "socket-udp", "socket-tcp", "socket-dhcpv4", "socket-dns", "socket-mdns",
+  "async"
+]
