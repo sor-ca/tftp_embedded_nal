@@ -9,6 +9,9 @@ edition = "2021"
 tftp_embedded_nal = { path = "../tftp_embedded_nal"}
 ascii = "1"
 nb = "1"
-std-embedded-nal = "0.1.3"
+#std-embedded-nal = "0.1.3"
 embedded-nal = "0.6.0"
 heapless = "0.7.16"
+smoltcp-nal = { git = "https://github.com/quartiq/smoltcp-nal" }
+smoltcp = "0.8.1"
+embedded-time = "0.12.1"
