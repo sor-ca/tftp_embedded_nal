@@ -128,7 +128,7 @@ where T: UdpClientStack + UdpFullStack,
                     //thread::sleep(time::Duration::from_secs(1));
                     self.udp
                         .send(&mut self.socket, packet.as_slice())
-                        .map_err(|_| MyError::UdpErr(SendErr))?;
+                        .map_err(|e| MyError::UdpErr(SendErr(e)))?;
 
                     if number_of_bytes < 516 {
                         break;
