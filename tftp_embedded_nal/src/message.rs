@@ -15,7 +15,7 @@ Error Codes
 
 use ascii::AsciiStr;
 use std::io;
-use embedded_nal::UdpClientStack;
+use embedded_nal::{UdpClientStack, UdpFullStack};
 use embedded_nal::nb;
 use tftp::{BufAtMost512, FileOperation, Message, Mode, Operation};
 use heapless::Vec;
@@ -95,7 +95,7 @@ pub fn rrq<'b>(path: &'b AsciiStr, octet_mode: bool) -> Message<'b> {
     }
 }
 
-pub fn data<'b, T: UdpClientStack>(block_id: u16, buf: &'b [u8]) -> Result<Message<'b>, MyError<T>> {
+pub fn data<'b, T: UdpClientStack + UdpFullStack>(block_id: u16, buf: &'b [u8]) -> Result<Message<'b>, MyError<T>> {
     let buf = BufAtMost512::try_from(buf);
     match buf {
         Ok(data) => Ok(Message::Data(block_id, data)),
@@ -111,30 +111,27 @@ pub fn error<'b>(block_id: u16, error_message: &'b AsciiStr) -> Message<'b> {
     Message::Error(block_id, error_message)
 }
 
-#[derive(Debug)]
 pub enum MyError<T>
-where
-        T: UdpClientStack,
+where T: UdpClientStack + UdpFullStack,
 {
     TftpErr(tftp::Error),
-    UdpErr(UdpErr),
+    UdpErr(UdpErr<T>),
     FileErr(io::Error),
     WouldBlock,
-    UdpClientStackErrnb(nb::Error<<T>::Error>),
-    UdpClientStackErr(<T>::Error),
 }
 
 #[derive(Debug)]
-pub enum UdpErr {
-    BindErr,
-    ConnectErr,
-    SendErr,
-    ReceiveErr,
+pub enum UdpErr<T>
+where T: UdpClientStack + UdpFullStack
+{
+    BindErr(<T>::Error),
+    ConnectErr(<T>::Error),
+    SendErr(nb::Error<<T>::Error>),
+    ReceiveErr(nb::Error<<T>::Error>),
 }
 
 impl<T> From<tftp::Error> for MyError<T>
-where
-        T: UdpClientStack,
+where T: UdpClientStack + UdpFullStack,
 {
     fn from(e: tftp::Error) -> Self {
         MyError::TftpErr(e)
@@ -142,31 +139,13 @@ where
 }
 
 impl<T> From<io::Error> for MyError<T>
-where
-        T: UdpClientStack,
+where T: UdpClientStack + UdpFullStack,
 {
     fn from(e: io::Error) -> Self {
         MyError::FileErr(e)
     }
 }
 
-impl<T> From<UdpErr> for MyError<T>
-where
-        T: UdpClientStack,
-{
-    fn from(e: UdpErr) -> Self {
-        MyError::UdpErr(e)
-    }
-}
-
-/* impl<T> From<T::Error> for MyError<T>
-where
-        T: UdpClientStack,
-{
-    fn from(e: T::Error) -> Self {
-        MyError::UdpClientStackErr(e)
-    }
-}*/
 
 /* https://stackoverflow.com/a/37347504/9123725
 

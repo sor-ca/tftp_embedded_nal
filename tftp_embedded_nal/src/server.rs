@@ -93,16 +93,16 @@ where T: UdpClientStack + UdpFullStack,
     pub fn write(&mut self, remote: SocketAddr) -> Result<Vec<u8, {10 * 1024}>, MyError<T>> {
         self.udp
             .connect(&mut self.socket, remote)
-            .unwrap();
-            //.map_err(|_| MyError::UdpErr(ConnectErr))?;
+            //.unwrap();
+            .map_err(|e| MyError::UdpErr(ConnectErr(e)))?;
         println!("connect socket");
         let mut vec: Vec<u8, {10 * 1024}> = Vec::new();
         //let packet: Vec<u8> = ack(0).into();
         let packet: Vec<u8, 516> = to_heapless(ack(0));
         self.udp
             .send(&mut self.socket, packet.as_slice())
-            .unwrap();
-            //.map_err(|_| MyError::UdpErr(SendErr))?;
+            //.unwrap();
+            .map_err(|e| MyError::UdpErr(SendErr(e)))?;
         println!("send ack");
 
         //necessary to add break after several error messages
@@ -128,7 +128,7 @@ where T: UdpClientStack + UdpFullStack,
                     //thread::sleep(time::Duration::from_secs(1));
                     self.udp
                         .send(&mut self.socket, packet.as_slice())
-                        .map_err(|_| MyError::UdpErr(SendErr))?;
+                        .map_err(|e| MyError::UdpErr(SendErr(e)))?;
 
                     if number_of_bytes < 516 {
                         break;
@@ -146,8 +146,8 @@ where T: UdpClientStack + UdpFullStack,
     pub fn read(&mut self, remote: SocketAddr, vec: &mut Vec<u8, {10 * 1024}>) -> Result<(), MyError<T>> {
         self.udp
             .connect(&mut self.socket, remote)
-            .unwrap();
-            //.map_err(|_| MyError::UdpErr(ConnectErr))?;
+            //.unwrap();
+            .map_err(|e| MyError::UdpErr(ConnectErr(e)))?;
         println!("connect socket");
 
         let mut i = 0;
@@ -158,7 +158,6 @@ where T: UdpClientStack + UdpFullStack,
         loop {
             vec_slice = if vec.len() > j { &vec[i..j] } else { &vec[i..] };
             let packet: Vec<u8, 516> = match data::<T>(block_id, vec_slice) {
-                //Ok(buf) => buf.into(),
                 Ok(buf) => to_heapless(buf),
                 Err(_) => panic!(),
             };
@@ -166,8 +165,8 @@ where T: UdpClientStack + UdpFullStack,
             loop {
                 self.udp
                     .send(&mut self.socket, packet.as_slice())
-                    .unwrap();
-                    //.map_err(|_| MyError::UdpErr(SendErr))?;
+                    //.unwrap();
+                    .map_err(|e| MyError::UdpErr(SendErr(e)))?;
 
                 let mut r_buf = [0; 516];
                 let result = self.udp

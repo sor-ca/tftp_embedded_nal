@@ -39,9 +39,8 @@
             println!("create packet");
             self.udp
                 .send_to(&mut self.socket, *remote_addr, packet.as_slice())
-                .unwrap();
-                //.map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
-                //.map_err(|_| MyError::UdpErr(SendErr))?;
+                //.unwrap();
+                .map_err(|e| MyError::UdpErr(SendErr(e)))?;
             println!("send request");
 
             let mut block_id = 1u16;
@@ -76,8 +75,7 @@
                             ack(id));
                             //.into();
                         self.udp.send_to(&mut self.socket, *remote_addr, packet.as_slice())
-                            //.map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
-                            .map_err(|_| MyError::UdpErr(SendErr))?;
+                            .map_err(|e| MyError::UdpErr(SendErr(e)))?;
 
                         if filled_buf.len() < 516 {
                             println!("file came to end");
@@ -120,8 +118,7 @@
                             //.into();
                             self.udp
                                 .send_to(&mut self.socket, *remote_addr, packet.as_slice())
-                                //.map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
-                                .map_err(|_| MyError::UdpErr(SendErr))?;
+                                .map_err(|e| MyError::UdpErr(SendErr(e)))?;
 
                             if number_of_bytes < 516 {
                                 //file_end = true;
@@ -155,8 +152,7 @@
                 //.into();
             self.udp
                 .send_to(&mut self.socket, *remote_addr, packet.as_slice())
-                .map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
-                //.map_err(|_| MyError::UdpErr(SendErr))?;
+                .map_err(|e| MyError::UdpErr(SendErr(e)))?;
 
                 let mut i = 0;
                 let mut j = 512;
@@ -188,8 +184,7 @@
                                         //.into();
                                         self.udp
                                             .send_to(&mut self.socket, src_addr, packet.as_slice())
-                                            .map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
-                                            //.map_err(|_| MyError::UdpErr(SendErr))?;
+                                            .map_err(|e| MyError::UdpErr(SendErr(e)))?;
                                         break;
                                     } else {
                                         println!("wrong block id");
