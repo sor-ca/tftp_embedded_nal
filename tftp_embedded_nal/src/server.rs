@@ -54,7 +54,10 @@ where T: UdpClientStack + UdpFullStack,
             let (number_of_bytes, src_addr) = match result {
                 Ok(n,) => n,
                 Err(nb::Error::WouldBlock) => continue,
-                Err(_) => panic!("no request"),
+                Err(_) => {
+                    result.unwrap();
+                    panic!("no request")
+                },
             };
 
             println!("scr_addr {:?}", src_addr);
@@ -113,7 +116,10 @@ where T: UdpClientStack + UdpFullStack,
             let (number_of_bytes, _src_addr) = match result {
                 Ok(n) => n,
                 Err(nb::Error::WouldBlock) => continue,
-                Err(_) => panic!("no request"),
+                Err(_) => {
+                    result.unwrap();
+                    panic!("no request")
+                },
             };
             let filled_buf = &mut buf[..number_of_bytes];
             let message = Message::try_from(&filled_buf[..])?;
@@ -175,7 +181,10 @@ where T: UdpClientStack + UdpFullStack,
                 let (number_of_bytes, _src_addr) = match result {
                     Ok(n,) => n,
                     Err(nb::Error::WouldBlock) => continue,
-                    Err(_) => panic!("no request"),
+                    Err(_) => {
+                        result.unwrap();
+                        panic!("no request")
+                    },
                 };
 
                 let filled_buf = &mut r_buf[..number_of_bytes];

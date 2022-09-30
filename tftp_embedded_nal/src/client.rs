@@ -39,13 +39,11 @@
             println!("create packet");
             self.udp
                 .send_to(&mut self.socket, *remote_addr, packet.as_slice())
-                .unwrap();
-                //.map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
-                //.map_err(|_| MyError::UdpErr(SendErr))?;
+                //.unwrap();
+                .map_err(|e| MyError::UdpErr(SendErr(e)))?;
             println!("send request");
 
             let mut block_id = 1u16;
-            //let mut vec = Vec::with_capacity(1024 * 1024);
             let mut vec: Vec<u8, {10 * 1024}> = Vec::new();
             let mut file_end = false;
 
@@ -56,7 +54,10 @@
                 let (number_of_bytes, src_addr) = match result {
                     Ok(n,) => n,
                     Err(nb::Error::WouldBlock) => continue,
-                    Err(_) => panic!("no request"),
+                    Err(_) => {
+                        result.unwrap();
+                        panic!("no request")
+                    },
                 };
                 println!("receive message");
 
@@ -99,7 +100,10 @@
                     let (number_of_bytes, _src_addr) = match result {
                         Ok(n,) => n,
                         Err(nb::Error::WouldBlock) => continue,
-                        Err(_) => panic!("no request"),
+                        Err(_) => {
+                            result.unwrap();
+                            panic!("no request")
+                        },
                     };
 
                     let filled_buf = &mut r_buf[..number_of_bytes];
@@ -119,7 +123,6 @@
                             //.into();
                             self.udp
                                 .send_to(&mut self.socket, *remote_addr, packet.as_slice())
-                                //.map_err(|e: nb::Error<<T>::Error>| MyError::UdpClientStackErrnb(e))?;
                                 .map_err(|e| MyError::UdpErr(SendErr(e)))?;
 
                             if number_of_bytes < 516 {
@@ -171,7 +174,10 @@
                         let (number_of_bytes, src_addr) = match result {
                             Ok(n,) => n,
                             Err(nb::Error::WouldBlock) => continue,
-                            Err(_) => panic!("no request"),
+                            Err(_) => {
+                                result.unwrap();
+                                panic!("no request")
+                            },
                         };
 
                         let filled_buf = &mut r_buf[..number_of_bytes];
