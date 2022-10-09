@@ -51,11 +51,11 @@ fn main() {
 
     let udp_rx_buffer = UdpSocketBuffer::new(
         vec![PacketMetadata::EMPTY, PacketMetadata::EMPTY],
-        vec![0; 65535],
+        vec![0; 516],
     );
     let udp_tx_buffer = UdpSocketBuffer::new(
         vec![PacketMetadata::EMPTY, PacketMetadata::EMPTY],
-        vec![0; 65535],
+        vec![0; 516],
     );
     let udp_socket = UdpSocket::new(udp_rx_buffer, udp_tx_buffer);
     println!("create socket");
