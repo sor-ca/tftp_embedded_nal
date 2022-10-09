@@ -33,19 +33,22 @@
 
         pub fn read_file(&mut self, path: &str, remote_addr: &mut SocketAddr) -> Result<Vec<u8, {10 * 1024}>, MyError<T>>
         {
-            let packet: Vec<u8, 516> = to_heapless(
+            let mut server_addr = *remote_addr;
+            let mut packet: Vec<u8, 516> = to_heapless(
                 rrq(AsciiStr::from_ascii(path.as_bytes()).unwrap(), true));
             //.into();
             println!("create packet");
             self.udp
-                .send_to(&mut self.socket, *remote_addr, packet.as_slice())
+                .send_to(&mut self.socket, server_addr, packet.as_slice())
                 //.unwrap();
                 .map_err(|e| MyError::UdpErr(SendErr(e)))?;
             println!("send request");
 
             let mut block_id = 1u16;
+
             let mut vec: Vec<u8, {10 * 1024}> = Vec::new();
-            let mut file_end = false;
+            //let mut file_end = false;
+            let mut error = 0;
 
             loop {
                 let mut r_buf = [0; 516];
@@ -54,15 +57,13 @@
                 let (number_of_bytes, src_addr) = match result {
                     Ok(n,) => n,
                     Err(nb::Error::WouldBlock) => continue,
-                    Err(_) => {
-                        result.unwrap();
-                        panic!("no request")
-                    },
+                    Err(_) => panic!("no request"),
                 };
                 println!("receive message");
 
                 let filled_buf = &mut r_buf[..number_of_bytes];
                 let message = Message::try_from(&filled_buf[..])?;
+
                 match message {
                     Message::Data(id, data) => {
                         if id != block_id {
@@ -70,46 +71,54 @@
                             continue;
                         }
                         println!("receive data message");
-                        *remote_addr = src_addr;
+                        server_addr = src_addr;
                         vec.extend_from_slice(data.as_ref()).unwrap();
 
-                        let packet: Vec<u8, 516> = to_heapless(
-                            ack(id));
-                            //.into();
+                        packet = to_heapless(ack(id));
                         self.udp.send_to(&mut self.socket, *remote_addr, packet.as_slice())
                             .map_err(|e| MyError::UdpErr(SendErr(e)))?;
 
                         if filled_buf.len() < 516 {
                             println!("file came to end");
-                            file_end = true;
+                            break;
+                            //file_end = true;
                         } else {
                             block_id += 1;
+                            error = 0;
+                            continue;
                         };
-                        break;
                     }
-                    _ => continue,
+                    _ => {
+                        if error == 2 {
+                            println!("2 errors");
+                            break;
+                        } else {
+                            error += 1;
+                            self.udp.send_to(&mut self.socket, *remote_addr, packet.as_slice())
+                                .map_err(|e| MyError::UdpErr(SendErr(e)))?;
+                            continue;
+                        }
+                    }
                 }
             }
 
-            if !file_end {
-                //necessary to add break after several error messages
+            /*if !file_end {
                 loop {
                     let mut r_buf = [0; 516];
                     let result = self.udp
                         .receive(&mut self.socket, &mut r_buf);
-                    let (number_of_bytes, _src_addr) = match result {
+                    let (number_of_bytes, src_addr) = match result {
                         Ok(n,) => n,
                         Err(nb::Error::WouldBlock) => continue,
-                        Err(_) => {
-                            result.unwrap();
-                            panic!("no request")
-                        },
+                        Err(_) => panic!("no request"),
                     };
+                    if src_addr != server_addr {
+                        continue;
+                    }
 
                     let filled_buf = &mut r_buf[..number_of_bytes];
                     let message = Message::try_from(&filled_buf[..])?;
 
-                    let mut error = 0;
                     match message {
                         Message::Data(id, data) => {
                             println!("receive data packet");
@@ -119,7 +128,7 @@
                             }
                             vec.extend_from_slice(data.as_ref()).unwrap();
 
-                            let packet: Vec<u8, 516> = to_heapless(ack(block_id));
+                            packet = to_heapless(ack(block_id));
                             //.into();
                             self.udp
                                 .send_to(&mut self.socket, *remote_addr, packet.as_slice())
@@ -136,17 +145,19 @@
                             }
                         }
                         _ => {
-                            if error == 3 {
+                            if error == 2 {
                                 println!("3 errors");
                                 break;
                             } else {
                                 error += 1;
+                                self.udp.send_to(&mut self.socket, *remote_addr, packet.as_slice())
+                                    .map_err(|e| MyError::UdpErr(SendErr(e)))?;
                                 continue;
                             }
                         }
                     }
                 }
-            }
+            }*/
             Ok(vec)
         }
 
